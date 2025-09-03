@@ -1,0 +1,3215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>家庭月度营养食谱 · Pro v3（整月 · 营养优化 · 购物清单）</title>
+<style>
+  :root {
+    --card:#fff; --accent:#667eea; --ring:rgba(102,126,234,.2); --muted:#6b7280; --text:#111827;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",Arial,sans-serif;background:linear-gradient(135deg,#f3f4f6 0%,#ffffff 100%);color:var(--text)}
+  header{position:sticky;top:0;background:rgba(255,255,255,.85);backdrop-filter:blur(8px);border-bottom:1px solid #eef0f6;display:flex;align-items:center;justify-content:space-between;padding:14px 16px;z-index:5}
+  h1{font-size:18px;margin:0;color:var(--accent)}
+  .toggle{display:flex;gap:8px}
+  .toggle button{border:1px solid #e5e7eb;background:#fff;padding:8px 12px;border-radius:999px;cursor:pointer}
+  .toggle button.active{border-color:var(--accent);color:var(--accent);box-shadow:0 0 0 4px var(--ring)}
+  .container{max-width:1200px;margin:16px auto;padding:0 12px}
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:8px 0 12px;flex-wrap:wrap}
+  .date-controls{display:flex;gap:6px;flex-wrap:wrap}
+  .date-controls button{border:1px solid #e5e7eb;background:#fff;padding:6px 10px;border-radius:10px;cursor:pointer}
+  .current-date{padding:6px 10px;border-radius:10px;background:#eef2ff;color:var(--accent);font-weight:600}
+  .tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .tools select,.tools button{border:1px solid #e5e7eb;background:#fff;padding:6px 10px;border-radius:10px;cursor:pointer}
+  .grid{display:grid;grid-template-columns:1.2fr .8fr;gap:12px}
+  @media (max-width:980px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid #eef0f6;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.05);padding:12px}
+  .tabs{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+  .tabs button{border:1px solid #e5e7eb;background:#fff;padding:6px 10px;border-radius:10px;cursor:pointer}
+  .tabs button.active{border-color:var(--accent);color:var(--accent);box-shadow:0 0 0 3px var(--ring)}
+  .meal-content{display:none}
+  .meal-content.active{display:block}
+  .dish{border:1px solid #eef0f6;border-radius:12px;padding:10px;margin-bottom:10px;background:#fff}
+  .dish h3{margin:0 0 6px;font-size:16px}
+  .dish small{color:#6b7280;display:block;margin-top:6px}
+  .dish .time{color:#2563eb;font-weight:600}
+  .dish .nutri{color:#065f46}
+  .dish .tip{color:#b45309;background:#fff7ed;border:1px solid #ffedd5;border-radius:8px;padding:8px;margin-top:6px}
+  .calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+  .calendar .day,.calendar .head{border:1px solid #eef0f6;background:#fff;border-radius:12px;padding:8px;text-align:center}
+  .calendar .head{background:#f8fafc;font-weight:600;color:var(--accent)}
+  .calendar .day{cursor:pointer;color:#333;min-height:62px;display:flex;align-items:flex-start;justify-content:flex-start}
+  .calendar .day .num{font-weight:600;padding:4px 6px;border-radius:8px}
+  .calendar .day.active .num{background:#eef2ff;color:var(--accent)}
+  .totals{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+  .total-pill{background:#eef2ff;border:1px solid #e5e7eb;padding:6px 10px;border-radius:999px}
+  .insights{margin-top:8px;border:1px dashed #e5e7eb;border-radius:10px;padding:10px;background:#fafafa;color:#374151}
+  .insights b{color:#111827}
+  .list{white-space:pre-wrap;background:#fafafa;border:1px dashed #e5e7eb;padding:10px;border-radius:10px}
+  .btn-mini{border:1px solid #e5e7eb;background:#fff;border-radius:10px;padding:4px 8px;cursor:pointer;margin-left:6px}
+</style>
+</head>
+<body>
+<header>
+  <h1>家庭月度营养食谱 · Pro v3</h1>
+  <div class="toggle">
+    <button class="toggle-btn active" onclick="toggleView('daily')">今日菜谱</button>
+    <button class="toggle-btn" onclick="toggleView('calendar')">月度日历</button>
+  </div>
+</header>
+
+<div class="container">
+  <div class="topbar">
+    <div class="date-controls">
+      <button onclick="shiftDay(-1)">⬅️ 前一天</button>
+      <span class="current-date" id="current-date">加载中…</span>
+      <button onclick="shiftDay(1)">后一天 ➡️</button>
+    </div>
+    <div class="tools">
+      <label>📗 周选择：</label>
+      <select id="week-select">
+        <option value="1">第1周（1—7日）</option>
+        <option value="2">第2周（8—14日）</option>
+        <option value="3">第3周（15—21日）</option>
+        <option value="4">第4周（22—28日）</option>
+      </select>
+      <label>🛒 购物清单：</label>
+      <button onclick="generateShoppingList()">生成</button>
+      <button onclick="downloadShoppingList()">下载TXT</button>
+    </div>
+  </div>
+
+  <div id="daily-view" class="grid">
+    <div class="card">
+      <div class="tabs">
+        <button class="tab-btn active" onclick="showMeal('breakfast')">🌅 早餐</button>
+        <button class="tab-btn" onclick="showMeal('lunch')">☀️ 午餐</button>
+        <button class="tab-btn" onclick="showMeal('dinner')">🌙 晚餐</button>
+        <button class="tab-btn" onclick="showMeal('snack')">🎃 加餐</button>
+      </div>
+      <div id="breakfast" class="meal-content active"></div>
+      <div id="lunch" class="meal-content"></div>
+      <div id="dinner" class="meal-content"></div>
+      <div id="snack" class="meal-content"></div>
+    </div>
+
+    <div class="card">
+      <h3>今日营养汇总（每人）</h3>
+      <div id="nutrition-summary" class="totals"></div>
+      <div id="nutrition-insights" class="insights">营养要点将根据今天菜单自动生成。</div>
+    </div>
+
+    <div class="card" style="grid-column:1/-1">
+      <h3>购物清单（按所选周）</h3>
+      <div id="shopping-list" class="list">请选择周次并点击"生成"。</div>
+    </div>
+  </div>
+
+  <div id="calendar-view" class="card" style="display:none;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+      <div>
+        <button onclick="shiftMonth(-1)">上个月</button>
+        <button onclick="toToday()" style="margin:0 6px;">回到今天</button>
+        <button onclick="shiftMonth(1)">下个月</button>
+      </div>
+      <div id="month-title" style="font-weight:700; color: var(--accent);"></div>
+    </div>
+    <div id="calendar" class="calendar"></div>
+    <div class="note" style="color:#6b7280;margin-top:6px;">点击某一天即可查看当天食谱；整月日期会映射到对应周（1—7、8—14、15—21、22—28），29—31日按第1—3天循环。</div>
+  </div>
+</div>
+
+<script>
+// 状态管理
+let state = { year: new Date().getFullYear(), month: new Date().getMonth(), day: new Date().getDate() };
+let userAdded = {}; // 用户自定义加餐
+
+// 完整4周食谱数据
+const week1 = {
+  1: {
+    breakfast: [
+      {
+        name: "燕麦牛奶",
+        type: "主食",
+        time: "7分钟",
+        ingredients: {
+          "燕麦片": "90g",
+          "牛奶": "600ml",
+          "清水": "300ml"
+        },
+        steps: [
+          "小锅倒入清水300ml，大火烧开。",
+          "转中火加入燕麦片，不断搅拌防粘锅。",
+          "5分钟后加入牛奶再煮2分钟；关火静置1分钟更浓稠。"
+        ],
+        tip: "火别太大防溢锅；若想更稠，适当延长1-2分钟。",
+        nutrition: { calories: 260, protein: 14, carbs: 36, fat: 8, fiber: 5, calcium: 220 }
+      },
+      {
+        name: "水煮蛋",
+        type: "蛋白",
+        time: "8分钟",
+        ingredients: { "鸡蛋": "3个" },
+        steps: ["鸡蛋冷水下锅，中火加热至沸", "继续煮8分钟，捞出入凉水更好剥"],
+        tip: "想要溏心：沸后6分钟即可。",
+        nutrition: { calories: 80, protein: 7, carbs: 0, fat: 5, fiber: 0, calcium: 30 }
+      },
+      {
+        name: "苹果",
+        type: "水果",
+        time: "1分钟",
+        ingredients: { "苹果": "3个" },
+        steps: ["洗净切片即可"],
+        nutrition: { calories: 60, protein: 0, carbs: 16, fat: 0, fiber: 3, calcium: 10 }
+      }
+    ],
+    lunch: [
+      {
+        name: "清蒸鲈鱼",
+        type: "鱼",
+        time: "20分钟",
+        ingredients: {
+          "鲈鱼": "1条（约500g）",
+          "姜": "6片",
+          "葱": "2根",
+          "蒸鱼豉油": "15ml",
+          "食用油": "10ml"
+        },
+        steps: [
+          "鱼身两侧各斜切2-3刀，腹腔与鱼身塞入姜片葱段，静置10分钟。",
+          "蒸锅加水烧开，放入鱼，上汽后计时8分钟。",
+          "取出倒掉盘中腥水，撒葱丝，另起锅烧热10ml油，冒烟时淋在鱼身，再浇蒸鱼豉油。"
+        ],
+        tip: "判断熟度：鱼眼鼓起、鱼肉发白易剥离。500g≈8分钟；更大适当+2分钟。",
+        nutrition: { calories: 260, protein: 32, carbs: 2, fat: 13, fiber: 0, calcium: 60 }
+      },
+      {
+        name: "西兰花胡萝卜",
+        type: "素菜",
+        time: "10分钟",
+        ingredients: {
+          "西兰花": "300g",
+          "胡萝卜": "150g",
+          "盐": "少许",
+          "橄榄油": "10ml"
+        },
+        steps: [
+          "西兰花掰小朵，胡萝卜切薄片",
+          "沸水中先下胡萝卜1分钟，再下西兰花2分钟",
+          "捞出过凉水沥干，加盐与橄榄油拌匀"
+        ],
+        tip: "焯后过凉可保持翠绿与脆嫩。",
+        nutrition: { calories: 90, protein: 4, carbs: 12, fat: 5, fiber: 5, calcium: 70 }
+      },
+      {
+        name: "糙米饭",
+        type: "主食",
+        time: "35分钟",
+        ingredients: {
+          "糙米": "240g",
+          "水": "约480ml"
+        },
+        steps: [
+          "糙米提前浸泡2小时更易熟",
+          "电饭煲米水1:2，按煮饭键"
+        ],
+        tip: "喜欢更软糯可再多加10%水。",
+        nutrition: { calories: 280, protein: 6, carbs: 60, fat: 2, fiber: 3, calcium: 10 }
+      }
+    ],
+    dinner: [
+      {
+        name: "番茄牛腩",
+        type: "炖菜",
+        time: "70分钟",
+        ingredients: {
+          "牛腩": "450g",
+          "番茄": "300g",
+          "洋葱": "100g",
+          "姜": "3片",
+          "料酒": "10ml",
+          "生抽": "15ml",
+          "盐": "适量",
+          "油": "1汤匙"
+        },
+        steps: [
+          "牛腩切3-4cm块，冷水下锅加姜片，大火煮沸撇去浮沫，再煮2分钟，捞出。",
+          "锅内入油，中火下洋葱丝、番茄块，炒至番茄出汁、汤色红。",
+          "入牛腩翻炒1分钟，倒入料酒、生抽。",
+          "加热水没过牛腩，大火煮开后转小火，加盖炖60分钟。",
+          "开盖用筷子能轻松戳入即软烂，加入盐，小火再收汁5分钟。"
+        ],
+        tip: "全程小火微沸，汤面偶尔冒小泡即可；中途若加水务必加热水。",
+        nutrition: { calories: 420, protein: 28, carbs: 10, fat: 28, fiber: 2, calcium: 30 }
+      },
+      {
+        name: "凉拌菠菜",
+        type: "凉菜",
+        time: "8分钟",
+        ingredients: {
+          "菠菜": "300g",
+          "蒜": "2瓣",
+          "生抽": "10ml",
+          "香油": "5ml"
+        },
+        steps: [
+          "菠菜洗净切段",
+          "沸水中焯1分钟，捞出过凉挤干",
+          "蒜末、生抽、香油拌匀即可"
+        ],
+        tip: "焯得太久会发黄、口感糟。",
+        nutrition: { calories: 80, protein: 4, carbs: 6, fat: 4, fiber: 3, calcium: 120 }
+      },
+      {
+        name: "小米粥",
+        type: "主食",
+        time: "30分钟",
+        ingredients: {
+          "小米": "120g",
+          "水": "约1L"
+        },
+        steps: [
+          "小米淘洗2遍",
+          "小火煮30分钟，期间偶尔搅拌避免糊底",
+          "米粒开花、粥浓稠即可"
+        ],
+        tip: "想要更绵滑，可加一点点热水继续小火煮5分钟。",
+        nutrition: { calories: 190, protein: 5, carbs: 40, fat: 1, fiber: 2, calcium: 8 }
+      }
+    ],
+    snack: [
+      {
+        name: "原味酸奶",
+        type: "乳品",
+        time: "1分钟",
+        ingredients: { "酸奶": "450ml" },
+        steps: ["冷藏后分装食用，可加少量坚果或水果丁"],
+        nutrition: { calories: 120, protein: 5, carbs: 10, fat: 4, fiber: 0, calcium: 150 }
+      }
+    ]
+  },
+  2: {
+    breakfast: [
+      {
+        name: "全麦吐司夹鸡胸",
+        type: "主食+蛋白",
+        time: "15分钟",
+        ingredients: {
+          "全麦吐司": "6片",
+          "熟鸡胸肉丝": "150g",
+          "生菜": "适量",
+          "番茄片": "6片",
+          "低脂酱": "少量"
+        },
+        steps: [
+          "吐司烤至微脆（烤面包机2档约2分钟）",
+          "在吐司间夹鸡胸、生菜、番茄，抹少量酱料"
+        ],
+        tip: "酱料不要多，以免腻；鸡胸提前煮熟更高效。",
+        nutrition: { calories: 350, protein: 22, carbs: 44, fat: 9, fiber: 6, calcium: 80 }
+      },
+      {
+        name: "圣女果",
+        type: "水果",
+        time: "1分钟",
+        ingredients: { "圣女果": "300g" },
+        steps: ["洗净即可食用"],
+        nutrition: { calories: 30, protein: 1, carbs: 7, fat: 0, fiber: 2, calcium: 12 }
+      }
+    ],
+    lunch: [
+      {
+        name: "鸡肉蔬菜意面",
+        type: "主食",
+        time: "25分钟",
+        ingredients: {
+          "意面": "240g",
+          "鸡胸丝": "250g",
+          "彩椒": "150g",
+          "西葫芦": "150g",
+          "橄榄油": "10ml",
+          "盐黑胡椒": "适量"
+        },
+        steps: [
+          "锅中水加盐，沸后下意面煮8-10分钟至略有嚼劲，捞出沥干。",
+          "平底锅入橄榄油，下鸡胸丝翻炒至变白，再下彩椒与西葫芦丝。",
+          "倒入意面拌匀，撒盐和黑胡椒，翻炒1分钟出锅。"
+        ],
+        tip: "意面不要煮过头；蔬菜保持脆嫩口感。",
+        nutrition: { calories: 550, protein: 32, carbs: 70, fat: 14, fiber: 6, calcium: 60 }
+      },
+      {
+        name: "蔬菜沙拉",
+        type: "素",
+        time: "5分钟",
+        ingredients: {
+          "生菜": "200g",
+          "黄瓜": "150g",
+          "橄榄油": "5ml",
+          "苹果醋": "5ml"
+        },
+        steps: [
+          "生菜洗净沥干，黄瓜切片",
+          "橄榄油与苹果醋1:1调匀淋在蔬菜上"
+        ],
+        tip: "叶菜务必沥干再拌，味道更好。",
+        nutrition: { calories: 80, protein: 3, carbs: 10, fat: 4, fiber: 3, calcium: 40 }
+      }
+    ],
+    dinner: [
+      {
+        name: "香菇青菜豆腐煲",
+        type: "素蛋白",
+        time: "20分钟",
+        ingredients: {
+          "北豆腐": "400g",
+          "香菇": "150g",
+          "青菜": "200g",
+          "生抽": "10ml",
+          "蚝油": "5ml",
+          "姜片": "3片"
+        },
+        steps: [
+          "香菇洗净切片，锅中少油把香菇煸香。",
+          "放入切块的豆腐和姜片，倒入半碗热水，小火煨10分钟。",
+          "加入青菜和调味料，再煨3分钟即可。"
+        ],
+        tip: "轻推豆腐，避免碎；全素可不放蚝油。",
+        nutrition: { calories: 260, protein: 18, carbs: 12, fat: 14, fiber: 4, calcium: 200 }
+      },
+      {
+        name: "藜麦饭",
+        type: "主食",
+        time: "20分钟",
+        ingredients: {
+          "藜麦": "180g",
+          "水": "360ml"
+        },
+        steps: [
+          "藜麦冲洗至无泡沫",
+          "电饭煲或小锅按1:2煮至吸干水分（约20分钟）"
+        ],
+        tip: "想更松散，出锅后盖上焖2分钟再松散开。",
+        nutrition: { calories: 220, protein: 7, carbs: 39, fat: 3, fiber: 4, calcium: 20 }
+      }
+    ],
+    snack: [
+      {
+        name: "坚果小把",
+        type: "加餐",
+        time: "1分钟",
+        ingredients: { "混合坚果": "30g" },
+        steps: ["直接食用"],
+        tip: "每天一小把即可，注意热量。",
+        nutrition: { calories: 170, protein: 5, carbs: 6, fat: 15, fiber: 2, calcium: 30 }
+      }
+    ]
+  },
+  3: {
+    breakfast: [
+      {
+        name: "蒸玉米",
+        type: "主食",
+        time: "12分钟",
+        ingredients: { "玉米棒": "3根" },
+        steps: ["玉米洗净，上汽后蒸10-12分钟"],
+        tip: "蒸熟后表面饱满、有玉米香味。",
+        nutrition: { calories: 150, protein: 4, carbs: 34, fat: 2, fiber: 4, calcium: 6 }
+      },
+      {
+        name: "温豆浆",
+        type: "饮品",
+        time: "5分钟",
+        ingredients: { "无糖豆浆": "600ml" },
+        steps: ["小火加热至温热，避免沸腾"],
+        tip: "沸腾易溢锅，注意看管。",
+        nutrition: { calories: 90, protein: 7, carbs: 6, fat: 3, fiber: 2, calcium: 30 }
+      }
+    ],
+    lunch: [
+      {
+        name: "少油红烧茄子",
+        type: "素",
+        time: "18分钟",
+        ingredients: {
+          "茄子": "400g",
+          "青红椒": "100g",
+          "蒜末": "1汤匙",
+          "生抽": "10ml",
+          "油": "10ml"
+        },
+        steps: [
+          "茄子切条，微波炉或蒸锅预处理至微软（减少吸油）。",
+          "锅入少油，爆香蒜末，下茄子与椒条翻炒。",
+          "淋生抽，继续翻炒至茄子入味变软即可。"
+        ],
+        tip: "先预蒸/微波可减少用油量。",
+        nutrition: { calories: 200, protein: 4, carbs: 20, fat: 10, fiber: 6, calcium: 30 }
+      },
+      {
+        name: "虾仁豌豆",
+        type: "海鲜",
+        time: "10分钟",
+        ingredients: {
+          "虾仁": "250g",
+          "豌豆": "150g",
+          "蒜片": "适量",
+          "盐": "少许"
+        },
+        steps: [
+          "锅中少油，先下虾仁至变色",
+          "加入豌豆同炒2分钟，撒盐即可"
+        ],
+        tip: "虾仁断生即可，过久会老。",
+        nutrition: { calories: 210, protein: 26, carbs: 8, fat: 8, fiber: 3, calcium: 60 }
+      },
+      {
+        name: "糙米饭",
+        type: "主食",
+        time: "35分钟",
+        ingredients: { "糙米": "240g" },
+        steps: ["电饭煲常规煮熟"],
+        nutrition: { calories: 280, protein: 6, carbs: 60, fat: 2, fiber: 3, calcium: 10 }
+      }
+    ],
+    dinner: [
+      {
+        name: "鸡腿菇炖鸡",
+        type: "炖菜",
+        time: "35分钟",
+        ingredients: {
+          "鸡腿肉": "450g",
+          "鸡腿菇": "200g",
+          "姜片": "3片",
+          "生抽": "10ml",
+          "盐": "适量"
+        },
+        steps: [
+          "鸡腿肉切大块入锅翻炒至变色出油。",
+          "加入鸡腿菇与姜片，倒入热水没过食材，小火炖20分钟。",
+          "加生抽和盐，再小火5分钟收味。"
+        ],
+        tip: "鸡肉先炒香再炖更入味。",
+        nutrition: { calories: 380, protein: 32, carbs: 6, fat: 24, fiber: 2, calcium: 20 }
+      },
+      {
+        name: "蒜蓉生菜",
+        type: "素",
+        time: "6分钟",
+        ingredients: {
+          "生菜": "300g",
+          "蒜末": "1汤匙",
+          "油盐": "少许"
+        },
+        steps: [
+          "热锅下油，蒜末爆香",
+          "下生菜大火快炒1-2分钟，加盐出锅"
+        ],
+        tip: "全程大火快炒，保持脆嫩。",
+        nutrition: { calories: 70, protein: 3, carbs: 6, fat: 4, fiber: 2, calcium: 40 }
+      }
+    ],
+    snack: [
+      {
+        name: "香蕉",
+        type: "水果",
+        time: "1分钟",
+        ingredients: { "香蕉": "3根" },
+        steps: ["剥皮即食"],
+        nutrition: { calories: 90, protein: 1, carbs: 23, fat: 0, fiber: 2, calcium: 5 }
+      }
+    ]
+  },
+  4: {
+    breakfast: [
+      {
+        name: "杂粮粥",
+        type: "主食",
+        time: "30分钟",
+        ingredients: {
+          "杂粮米": "150g",
+          "水": "1.2L"
+        },
+        steps: ["小火慢煮至软糯，期间偶尔搅拌"],
+        tip: "粥更绵稠：末段加少量热水再煮5分钟。",
+        nutrition: { calories: 220, protein: 6, carbs: 46, fat: 2, fiber: 4, calcium: 20 }
+      },
+      {
+        name: "芝士片",
+        type: "乳品",
+        time: "1分钟",
+        ingredients: { "奶酪片": "3片" },
+        steps: ["直接食用"],
+        nutrition: { calories: 70, protein: 4, carbs: 1, fat: 6, fiber: 0, calcium: 120 }
+      }
+    ],
+    lunch: [
+      {
+        name: "清炒牛肉丝",
+        type: "荤",
+        time: "12分钟",
+        ingredients: {
+          "牛里脊丝": "300g",
+          "彩椒丝": "150g",
+          "蒜片": "适量",
+          "生抽": "10ml",
+          "油": "10ml"
+        },
+        steps: [
+          "热锅入油，下牛肉丝大火快炒至变色。",
+          "加入彩椒丝与蒜片，翻炒1-2分钟。",
+          "淋生抽，翻匀出锅。"
+        ],
+        tip: "全程大火、动作快，口感更嫩。",
+        nutrition: { calories: 320, protein: 32, carbs: 6, fat: 18, fiber: 2, calcium: 18 }
+      },
+      {
+        name: "什锦蔬菜",
+        type: "素",
+        time: "10分钟",
+        ingredients: {
+          "胡萝卜": "100g",
+          "西兰花": "200g",
+          "玉米粒": "80g",
+          "油盐": "少许"
+        },
+        steps: [
+          "蔬菜切片/掰小朵",
+          "快炒或蒸熟后拌油盐"
+        ],
+        tip: "颜色多样更均衡。",
+        nutrition: { calories: 140, protein: 5, carbs: 22, fat: 4, fiber: 5, calcium: 40 }
+      },
+      {
+        name: "糙米饭",
+        type: "主食",
+        time: "35分钟",
+        ingredients: { "糙米": "240g" },
+        steps: ["电饭煲煮熟"],
+        nutrition: { calories: 280, protein: 6, carbs: 60, fat: 2, fiber: 3, calcium: 10 }
+      }
+    ],
+    dinner: [
+      {
+        name: "清蒸鳕鱼",
+        type: "鱼",
+        time: "15分钟",
+        ingredients: {
+          "鳕鱼柳": "450g",
+          "姜片": "5片",
+          "料酒": "10ml",
+          "盐": "少许"
+        },
+        steps: [
+          "鳕鱼柳加姜片、料酒与少许盐腌10分钟",
+          "水开后上锅蒸8分钟"
+        ],
+        tip: "鱼肉变白且易分离即熟。",
+        nutrition: { calories: 230, protein: 35, carbs: 0, fat: 9, fiber: 0, calcium: 20 }
+      },
+      {
+        name: "清炒菠菜",
+        type: "素",
+        time: "5分钟",
+        ingredients: {
+          "菠菜": "300g",
+          "蒜末": "1汤匙",
+          "油盐": "少许"
+        },
+        steps: [
+          "热锅下油，蒜末爆香",
+          "下菠菜大火快炒1-2分钟，调盐出锅"
+        ],
+        tip: "时间越短越翠绿。",
+        nutrition: { calories: 70, protein: 4, carbs: 5, fat: 3, fiber: 2, calcium: 120 }
+      }
+    ],
+    snack: [
+      {
+        name: "牛奶",
+        type: "乳品",
+        time: "1分钟",
+        ingredients: { "牛奶": "600ml" },
+        steps: ["冷饮或加热皆可"],
+        nutrition: { calories: 120, protein: 8, carbs: 12, fat: 4, fiber: 0, calcium: 240 }
+      }
+    ]
+  },
+  5: {
+    breakfast: [
+      {
+        name: "鸡蛋番茄面",
+        type: "主食",
+        time: "15分钟",
+        ingredients: {
+          "挂面": "240g",
+          "鸡蛋": "3个",
+          "番茄": "300g",
+          "盐": "少许",
+          "油": "少许"
+        },
+        steps: [
+          "锅里煮面同时，另锅少油炒番茄至出汁。",
+          "番茄锅中倒入适量热水，打入蛋液形成蛋花。",
+          "面条煮至稍硬心，捞入番茄蛋汤中，调盐出锅。"
+        ],
+        tip: "面条不要煮过头，口感更好。",
+        nutrition: { calories: 450, protein: 18, carbs: 70, fat: 10, fiber: 4, calcium: 60 }
+      }
+    ],
+    lunch: [
+      {
+        name: "宫保鸡丁（少糖）",
+        type: "荤",
+        time: "15分钟",
+        ingredients: {
+          "鸡胸丝": "300g",
+          "花生米": "40g",
+          "干辣椒": "适量",
+          "生抽": "10ml",
+          "醋": "5ml",
+          "糖": "5g",
+          "油": "适量"
+        },
+        steps: [
+          "鸡丝滑油至变色捞出（或少油快炒）。",
+          "锅留少油，下干辣椒爆香，倒入鸡丝与花生。",
+          "加入生抽、醋和少量糖翻炒均匀，出锅。"
+        ],
+        tip: "调味以酸甜微辣为主，糖量控制在最低。",
+        nutrition: { calories: 420, protein: 32, carbs: 16, fat: 24, fiber: 3, calcium: 40 }
+      },
+      {
+        name: "凉拌黄瓜",
+        type: "素",
+        time: "5分钟",
+        ingredients: {
+          "黄瓜": "2根",
+          "蒜末": "1茶匙",
+          "醋": "5ml",
+          "生抽": "5ml",
+          "盐": "少许"
+        },
+        steps: [
+          "黄瓜拍碎切段",
+          "加蒜末、醋、生抽与少量盐拌匀"
+        ],
+        tip: "拍碎更入味。",
+        nutrition: { calories: 40, protein: 1, carbs: 6, fat: 1, fiber: 2, calcium: 20 }
+      }
+    ],
+    dinner: [
+      {
+        name: "香菇豆腐羹",
+        type: "素蛋白",
+        time: "20分钟",
+        ingredients: {
+          "北豆腐": "400g",
+          "香菇": "150g",
+          "鸡蛋清": "1个",
+          "生抽": "10ml",
+          "淀粉水": "适量",
+          "盐": "少许"
+        },
+        steps: [
+          "香菇切片小火煸香，加水煮开。",
+          "下豆腐块煮沸，倒入少量淀粉水勾薄芡。",
+          "沿锅边淋入蛋清，形成细丝；加生抽和盐调味。"
+        ],
+        tip: "勾芡要薄，能挂汤即可。",
+        nutrition: { calories: 220, protein: 16, carbs: 12, fat: 10, fiber: 3, calcium: 220 }
+      },
+      {
+        name: "玉米糊",
+        type: "主食",
+        time: "10分钟",
+        ingredients: {
+          "玉米面": "90g",
+          "水": "600ml",
+          "盐": "极少"
+        },
+        steps: [
+          "小火一边搅一边煮至浓稠出香",
+          "小味后放极少盐即可"
+        ],
+        tip: "持续搅拌防糊底。",
+        nutrition: { calories: 160, protein: 4, carbs: 34, fat: 2, fiber: 3, calcium: 10 }
+      }
+    ],
+    snack: [
+      {
+        name: "梨",
+        type: "水果",
+        time: "1分钟",
+        ingredients: { "梨": "3个" },
+        steps: ["洗净即食"],
+        nutrition: { calories: 60, protein: 0, carbs: 16, fat: 0, fiber: 3, calcium: 8 }
+      }
+    ]
+  },
+  6: {
+    breakfast: [
+      {
+        name: "烤红薯",
+        type: "主食",
+        time: "25分钟",
+        ingredients: { "红薯": "3个（中）" },
+        steps: ["烤箱200℃ 25分钟或上汽蒸25分钟，至软糯"],
+        tip: "筷子能轻松扎透即可。",
+        nutrition: { calories: 180, protein: 3, carbs: 42, fat: 0, fiber: 4, calcium: 30 }
+      },
+      {
+        name: "酸奶",
+        type: "乳品",
+        time: "1分钟",
+        ingredients: { "酸奶": "450ml" },
+        steps: ["直接食用"],
+        nutrition: { calories: 120, protein: 5, carbs: 10, fat: 4, fiber: 0, calcium: 150 }
+      }
+    ],
+    lunch: [
+      {
+        name: "煎三文鱼配柠檬",
+        type: "鱼",
+        time: "12分钟",
+        ingredients: {
+          "三文鱼柳": "450g",
+          "柠檬": "1个",
+          "盐": "少许",
+          "黑胡椒": "适量",
+          "橄榄油": "10ml"
+        },
+        steps: [
+          "平底锅入油，中火两面各煎2-3分钟",
+          "离火后挤柠檬汁与少许盐胡椒"
+        ],
+        tip: "内心微嫩最好吃；表面微焦即可。",
+        nutrition: { calories: 360, protein: 33, carbs: 1, fat: 24, fiber: 0, calcium: 20 }
+      },
+      {
+        name: "烤南瓜西兰花",
+        type: "素",
+        time: "20分钟",
+        ingredients: {
+          "南瓜": "300g",
+          "西兰花": "250g",
+          "橄榄油": "10ml",
+          "盐": "少许"
+        },
+        steps: ["切块拌油盐，烤箱190℃烤15-20分钟"],
+        tip: "想更上色可在最后开2分钟上火。",
+        nutrition: { calories: 160, protein: 5, carbs: 28, fat: 5, fiber: 6, calcium: 70 }
+      }
+    ],
+    dinner: [
+      {
+        name: "鸡丝荞麦面",
+        type: "主食蛋白",
+        time: "18分钟",
+        ingredients: {
+          "荞麦面": "240g",
+          "熟鸡胸丝": "200g",
+          "胡萝卜丝": "80g",
+          "黄瓜丝": "80g",
+          "淡酱油": "15ml",
+          "香油": "5ml"
+        },
+        steps: [
+          "面条煮熟过凉水沥干。",
+          "拌入鸡丝、胡萝卜丝、黄瓜丝。",
+          "加入酱油和香油拌匀即可。"
+        ],
+        tip: "过凉水可让面更筋道。",
+        nutrition: { calories: 480, protein: 28, carbs: 70, fat: 10, fiber: 6, calcium: 60 }
+      },
+      {
+        name: "清炒小青菜",
+        type: "素",
+        time: "5分钟",
+        ingredients: {
+          "小青菜": "300g",
+          "蒜末": "1茶匙",
+          "盐": "少许"
+        },
+        steps: [
+          "热锅少油，蒜末爆香",
+          "下青菜大火快炒1-2分钟，加盐出锅"
+        ],
+        tip: "不要焖，影响清脆口感。",
+        nutrition: { calories: 50, protein: 2, carbs: 5, fat: 2, fiber: 2, calcium: 60 }
+      }
+    ],
+    snack: [
+      {
+        name: "核仁",
+        type: "坚果",
+        time: "1分钟",
+        ingredients: { "核仁": "30g" },
+        steps: ["直接食用"],
+        nutrition: { calories: 170, protein: 6, carbs: 6, fat: 15, fiber: 3, calcium: 75 }
+      }
+    ]
+  },
+  7: {
+    breakfast: [
+      {
+        name: "牛油果全麦吐司",
+        type: "主食",
+        time: "8分钟",
+        ingredients: {
+          "全麦吐司": "6片",
+          "牛油果": "1个",
+          "黑胡椒": "少许",
+          "柠檬汁": "几滴"
+        },
+        steps: [
+          "吐司烤微脆；牛油果去核取肉捣泥",
+          "把牛油果泥抹在吐司上，撒胡椒滴柠檬"
+        ],
+        tip: "牛油果按压略软即成熟。",
+        nutrition: { calories: 360, protein: 10, carbs: 48, fat: 14, fiber: 8, calcium: 100 }
+      }
+    ],
+    lunch: [
+      {
+        name: "番茄炖牛肉",
+        type: "炖菜",
+        time: "60分钟",
+        ingredients: {
+          "牛腩": "450g",
+          "番茄": "300g",
+          "洋葱": "80g",
+          "生抽": "10ml",
+          "料酒": "10ml",
+          "盐": "适量"
+        },
+        steps: [
+          "做法同第1天番茄牛腩，炖至软烂入味"
+        ],
+        tip: "番茄多一点更鲜。",
+        nutrition: { calories: 420, protein: 28, carbs: 10, fat: 28, fiber: 2, calcium: 30 }
+      },
+      {
+        name: "时蔬清炒",
+        type: "素",
+        time: "8分钟",
+        ingredients: {
+          "西葫芦": "150g",
+          "胡萝卜": "100g",
+          "青椒": "80g",
+          "油盐": "少许"
+        },
+        steps: [
+          "切片/条，热锅快炒2-3分钟，加盐出锅"
+        ],
+        tip: "不要加水，保持清爽。",
+        nutrition: { calories: 120, protein: 3, carbs: 16, fat: 5, fiber: 4, calcium: 40 }
+      }
+    ],
+    dinner: [
+      {
+        name: "虾仁豆腐",
+        type: "海鲜蛋白",
+        time: "15分钟",
+        ingredients: {
+          "虾仁": "250g",
+          "嫩豆腐": "400g",
+          "葱姜": "适量",
+          "盐": "少许"
+        },
+        steps: [
+          "锅中少油，下虾仁翻至变色。",
+          "加入切块嫩豆腐，轻轻推动以免碎。",
+          "加少量热水与盐，小火煮3分钟出锅。"
+        ],
+        tip: "全程轻推，保持豆腐完整。",
+        nutrition: { calories: 260, protein: 28, carbs: 6, fat: 12, fiber: 1, calcium: 180 }
+      },
+      {
+        name: "糙米饭",
+        type: "主食",
+        time: "35分钟",
+        ingredients: { "糙米": "240g" },
+        steps: ["电饭煲煮熟"],
+        nutrition: { calories: 280, protein: 6, carbs: 60, fat: 2, fiber: 3, calcium: 10 }
+      }
+    ],
+    snack: [
+      {
+        name: "蓝莓",
+        type: "水果",
+        time: "1分钟",
+        ingredients: { "蓝莓": "300g" },
+        steps: ["洗净即食"],
+        nutrition: { calories: 50, protein: 1, carbs: 12, fat: 0, fiber: 2, calcium: 6 }
+      }
+    ]
+  }
+};
+
+// 第2周：蛋白质优化版
+const week2 = {
+  1: {
+    breakfast: [
+      {
+        name: "燕麦牛奶",
+        type: "主食",
+        time: "7分钟",
+        ingredients: { "燕麦片": "90g", "牛奶": "600ml", "清水": "300ml" },
+        steps: ["小锅倒入清水300ml，大火烧开。", "转中火加入燕麦片，不断搅拌防粘锅。", "5分钟后加入牛奶再煮2分钟；关火静置1分钟更浓稠。"],
+        tip: "火别太大防溢锅；若想更稠，适当延长1-2分钟。",
+        nutrition: { calories: 260, protein: 14, carbs: 36, fat: 8, fiber: 5, calcium: 220 }
+      },
+      {
+        name: "茶叶蛋",
+        type: "蛋白",
+        time: "15分钟",
+        ingredients: { "鸡蛋": "3个", "茶叶": "1袋", "生抽": "10ml", "老抽": "5ml", "盐": "少许" },
+        steps: ["鸡蛋煮熟后敲裂蛋壳", "加茶叶和调料再煮10分钟上色入味"],
+        nutrition: { calories: 85, protein: 7, carbs: 1, fat: 5, fiber: 0, calcium: 30 }
+      },
+      {
+        name: "橙子",
+        type: "水果",
+        time: "1分钟",
+        ingredients: { "橙子": "3个" },
+        steps: ["洗净切瓣即可"],
+        nutrition: { calories: 65, protein: 1, carbs: 16, fat: 0, fiber: 3, calcium: 15 }
+      }
+    ],
+    lunch: [
+      {
+        name: "柠檬鸡胸",
+        type: "鸡肉",
+        time: "18分钟",
+        ingredients: { "鸡胸肉": "450g", "柠檬": "1个", "蜂蜜": "10ml", "橄榄油": "10ml", "迷迭香": "少许" },
+        steps: ["鸡胸肉切厚片用柠檬汁和蜂蜜腌制15分钟", "平底锅煎至两面金黄", "撒迷迭香调味"],
+        tip: "不要煎过头，保持嫩滑。",
+        nutrition: { calories: 270, protein: 35, carbs: 3, fat: 12, fiber: 0, calcium: 25 }
+      },
+      {
+        name: "彩虹沙拉",
+        type: "素菜",
+        time: "8分钟",
+        ingredients: { "紫甘蓝": "150g", "胡萝卜丝": "100g", "青椒丝": "100g", "橄榄油": "8ml", "柠檬汁": "5ml" },
+        steps: ["所有蔬菜洗净切丝", "橄榄油和柠檬汁调成酱汁", "拌匀即可"],
+        nutrition: { calories: 95, protein: 3, carbs: 12, fat: 4, fiber: 4, calcium: 45 }
+      },
+      {
+        name: "藜麦饭",
+        type: "主食",
+        time: "20分钟",
+        ingredients: { "藜麦": "180g", "水": "360ml" },
+        steps: ["藜麦冲洗至无泡沫", "电饭煲或小锅按1:2煮至吸干水分"],
+        nutrition: { calories: 220, protein: 7, carbs: 39, fat: 3, fiber: 4, calcium: 20 }
+      }
+    ],
+    dinner: [
+      {
+        name: "蒜蓉蒸扇贝",
+        type: "海鲜",
+        time: "12分钟",
+        ingredients: { "扇贝": "450g", "蒜蓉": "30g", "粉丝": "100g", "生抽": "10ml", "香油": "5ml" },
+        steps: ["扇贝处理干净，粉丝泡软", "蒜蓉爆香后铺在扇贝上", "上汽蒸8分钟，淋生抽和香油"],
+        nutrition: { calories: 220, protein: 25, carbs: 15, fat: 6, fiber: 0, calcium: 80 }
+      },
+      {
+        name: "上海青",
+        type: "素菜",
+        time: "5分钟",
+        ingredients: { "上海青": "300g", "蒜末": "1汤匙", "油盐": "少许" },
+        steps: ["热锅下油，蒜末爆香", "下上海青大火快炒1-2分钟，调盐出锅"],
+        nutrition: { calories: 60, protein: 3, carbs: 4, fat: 3, fiber: 2, calcium: 50 }
+      },
+      {
+        name: "紫薯粥",
+        type: "主食",
+        time: "25分钟",
+        ingredients: { "紫薯": "200g", "大米": "80g", "水": "800ml" },
+        steps: ["紫薯去皮切块", "与大米同煮至软糯"],
+        nutrition: { calories: 180, protein: 4, carbs: 40, fat: 1, fiber: 3, calcium: 15 }
+      }
+    ],
+    snack: [
+      {
+        name: "希腊酸奶配蓝莓",
+        type: "乳品",
+        time: "2分钟",
+        ingredients: { "希腊酸奶": "450ml", "蓝莓": "150g" },
+        steps: ["酸奶配蓝莓即可"],
+        nutrition: { calories: 160, protein: 15, carbs: 15, fat: 5, fiber: 2, calcium: 200 }
+      }
+    ]
+  },
+  2: {
+    breakfast: [
+      {
+        name: "香蕉燕麦饼",
+        type: "主食",
+        time: "12分钟",
+        ingredients: { "燕麦片": "120g", "香蕉": "2根", "鸡蛋": "2个", "牛奶": "100ml" },
+        steps: ["香蕉压泥与燕麦、鸡蛋、牛奶拌匀", "平底锅小火煎成饼状"],
+        nutrition: { calories: 280, protein: 12, carbs: 45, fat: 6, fiber: 6, calcium: 120 }
+      },
+      {
+        name: "猕猴桃",
+        type: "水果",
+        time: "1分钟",
+        ingredients: { "猕猴桃": "3个" },
+        steps: ["去皮切片即可"],
+        nutrition: { calories: 60, protein: 1, carbs: 14, fat: 0, fiber: 3, calcium: 10 }
+      }
+    ],
+    lunch: [
+      {
+        name: "红烧带鱼",
+        type: "鱼",
+        time: "25分钟",
+        ingredients: { "带鱼段": "500g", "生抽": "15ml", "老抽": "5ml", "糖": "5g", "葱姜": "适量", "油": "10ml" },
+        steps: ["带鱼段煎至两面金黄", "加调料和水焖煮15分钟", "收汁即可"],
+        tip: "带鱼容易散，翻动时要小心。",
+        nutrition: { calories: 285, protein: 30, carbs: 2, fat: 16, fiber: 0, calcium: 35 }
+      },
+      {
+        name: "干煸四季豆",
+        type: "素菜",
+        time: "15分钟",
+        ingredients: { "四季豆": "400g", "肉末": "50g", "榨菜": "30g", "干辣椒": "适量", "生抽": "8ml" },
+        steps: ["四季豆掐去两头煸炒至微干", "加肉末、榨菜炒香", "调味即可"],
+        nutrition: { calories: 150, protein: 8, carbs: 12, fat: 8, fiber: 5, calcium: 40 }
+      },
+      {
+        name: "五谷饭",
+        type: "主食",
+        time: "30分钟",
+        ingredients: { "五谷米": "240g", "水": "480ml" },
+        steps: ["提前浸泡2小时", "电饭煲煮制"],
+        nutrition: { calories: 290, protein: 8, carbs: 58, fat: 3, fiber: 5, calcium: 25 }
+      }
+    ],
+    dinner: [
+      {
+        name: "冬瓜排骨汤",
+        type: "汤",
+        time: "45分钟",
+        ingredients: { "排骨": "400g", "冬瓜": "300g", "姜": "3片", "盐": "适量" },
+        steps: ["排骨焯水后与姜片炖煮30分钟", "加冬瓜再煮15分钟", "调味即可"],
+        nutrition: { calories: 280, protein: 22, carbs: 8, fat: 18, fiber: 1, calcium: 45 }
+      },
+      {
+        name: "蒜蓉空心菜",
+        type: "素菜",
+        time: "6分钟",
+        ingredients: { "空心菜": "300g", "蒜蓉": "15g", "油盐": "适量" },
+        steps: ["大火爆炒空心菜", "加蒜蓉调味"],
+        nutrition: { calories: 70, protein: 3, carbs: 6, fat: 4, fiber: 3, calcium: 60 }
+      }
+    ],
+    snack: [
+      {
+        name: "核桃仁",
+        type: "坚果",
+        time: "1分钟",
+        ingredients: { "核桃仁": "30g" },
+        steps: ["直接食用"],
+        nutrition: { calories: 200, protein: 5, carbs: 4, fat: 18, fiber: 2, calcium: 30 }
+      }
+    ]
+  },
+  3: {
+    breakfast: [
+      {
+        name: "小米南瓜粥",
+        type: "主食",
+        time: "25分钟",
+        ingredients: { "小米": "100g", "南瓜": "200g", "水": "1L" },
+        steps: ["南瓜去皮切块", "与小米同煮至软糯"],
+        nutrition: { calories: 200, protein: 5, carbs: 42, fat: 2, fiber: 4, calcium: 20 }
+      },
+      {
+        name: "煮鸡蛋",
+        type: "蛋白",
+        time: "8分钟",
+        ingredients: { "鸡蛋": "3个" },
+        steps: ["冷水下锅煮8分钟"],
+        nutrition: { calories: 80, protein: 7, carbs: 0, fat: 5, fiber: 0, calcium: 30 }
+      },
+      {
+        name: "火龙果",
+        type: "水果",
+        time: "1分钟",
+        ingredients: { "火龙果": "2个" },
+        steps: ["去皮切块即可"],
+        nutrition: { calories: 50, protein: 1, carbs: 13, fat: 0, fiber: 2, calcium: 8 }
+      }
+    ],
+    lunch: [
+      {
+        name: "口水鸡",
+        type: "鸡肉",
+        time: "30分钟",
+        ingredients: { "鸡腿": "3个", "花椒油": "10ml", "生抽": "15ml", "香醋": "10ml", "蒜蓉": "20g", "花生碎": "20g" },
+        steps: ["鸡腿水煮20分钟晾凉切块", "调制口水鸡汁淋在鸡肉上", "撒花生碎"],
+        nutrition: { calories: 320, protein: 28, carbs: 3, fat: 20, fiber: 1, calcium: 25 }
+      },
+      {
+        name: "凉拌木耳",
+        type: "素菜",
+        time: "10分钟",
+        ingredients: { "黑木耳": "100g", "胡萝卜丝": "80g", "香菜": "30g", "生抽": "8ml", "香油": "5ml" },
+        steps: ["木耳泡发焯水", "配蔬菜丝调味拌匀"],
+        nutrition: { calories: 80, protein: 3, carbs: 8, fat: 4, fiber: 4, calcium: 35 }
+      },
+      {
+        name: "红薯饭",
+        type: "主食",
+        time: "35分钟",
+        ingredients: { "大米": "180g", "红薯": "120g", "水": "380ml" },
+        steps: ["红薯去皮切块", "与大米同煮"],
+        nutrition: { calories: 270, protein: 5, carbs: 60, fat: 1, fiber: 4, calcium: 15 }
+      }
+    ],
+    dinner: [
+      {
+        name: "麻婆豆腐",
+        type: "川菜",
+        time: "15分钟",
+        ingredients: { "豆腐": "400g", "肉末": "80g", "豆瓣酱": "15g", "花椒粉": "少许", "葱花": "适量" },
+        steps: ["豆腐切块焯水", "炒肉末加豆瓣酱", "下豆腐烧制入味"],
+        nutrition: { calories: 240, protein: 18, carbs: 8, fat: 15, fiber: 2, calcium: 200 }
+      },
+      {
+        name: "清炒豆苗",
+        type: "素菜",
+        time: "5分钟",
+        ingredients: { "豆苗": "300g", "蒜片": "适量", "油盐": "少许" },
+        steps: ["大火快炒豆苗", "蒜片爆香调味"],
+        nutrition: { calories: 65, protein: 4, carbs: 5, fat: 3, fiber: 2, calcium: 45 }
+      },
+      {
+        name: "白米粥",
+        type: "主食",
+        time: "20分钟",
+        ingredients: { "大米": "100g", "水": "800ml" },
+        steps: ["小火慢煮至粘稠"],
+        nutrition: { calories: 150, protein: 3, carbs: 32, fat: 0, fiber: 1, calcium: 5 }
+      }
+    ],
+    snack: [
+      {
+        name: "苹果",
+        type: "水果",
+        time: "1分钟",
+        ingredients: { "苹果": "2个" },
+        steps: ["洗净切片"],
+        nutrition: { calories: 80, protein: 0, carbs: 21, fat: 0, fiber: 4, calcium: 10 }
+      }
+    ]
+  },
+  4: {
+    breakfast: [
+      {
+        name: "蒸蛋羹",
+        type: "蛋白",
+        time: "15分钟",
+        ingredients: { "鸡蛋": "3个", "温水": "300ml", "盐": "少许", "香油": "5ml" },
+        steps: ["蛋液与温水1:1调匀", "上汽蒸12分钟", "淋香油"],
+        nutrition: { calories: 200, protein: 18, carbs: 2, fat: 12, fiber: 0, calcium: 60 }
+      },
+      {
+        name: "全麦馒头",
+        type: "主食",
+        time: "5分钟",
+        ingredients: { "全麦馒头": "3个" },
+        steps: ["蒸热即可"],
+        nutrition: { calories: 210, protein: 7, carbs: 42, fat: 2, fiber: 6, calcium: 20 }
+      },
+      {
+        name: "葡萄",
+        type: "水果",
+        time: "1分钟",
+        ingredients: { "葡萄": "300g" },
+        steps: ["洗净即食"],
+        nutrition: { calories: 60, protein: 1, carbs: 16, fat: 0, fiber: 1, calcium: 8 }
+      }
+    ],
+    lunch: [
+      {
+        name: "糖醋里脊",
+        type: "猪肉",
+        time: "20分钟",
+        ingredients: { "里脊肉": "400g", "番茄酱": "30g", "醋": "15ml", "糖": "20g", "淀粉": "30g" },
+        steps: ["里脊肉切条裹淀粉炸至金黄", "调糖醋汁炒制上色"],
+        tip: "油温控制好，避免炸糊。",
+        nutrition: { calories: 380, protein: 30, carbs: 25, fat: 18, fiber: 0, calcium: 20 }
+      },
+      {
+        name: "醋溜白菜",
+        type: "素菜",
+        time: "8分钟",
+        ingredients: { "白菜": "400g", "醋": "10ml", "糖": "5g", "生抽": "8ml" },
+        steps: ["白菜洗净切段", "大火炒制调酸甜味"],
+        nutrition: { calories: 70, protein: 2, carbs: 8, fat: 3, fiber: 3, calcium: 30 }
+      },
+      {
+        name: "黑米饭",
+        type: "主食",
+        time: "40分钟",
+        ingredients: { "黑米": "200g", "水": "400ml" },
+        steps: ["提前浸泡4小时", "电饭煲煮制"],
+        nutrition: { calories: 280, protein: 6, carbs: 58, fat: 2, fiber: 4, calcium: 25 }
+      }
+    ],
+    dinner: [
+      {
+        name: "清蒸黄花鱼",
+        type: "鱼",
+        time: "15分钟",
+        ingredients: { "黄花鱼": "1条500g", "蒸鱼豉油": "15ml", "葱丝": "适量", "姜丝": "适量", "油": "10ml" },
+        steps: ["鱼身划刀塞葱姜", "上汽蒸10分钟", "淋豉油和热油"],
+        nutrition: { calories: 250, protein: 32, carbs: 2, fat: 12, fiber: 0, calcium: 50 }
+      },
+      {
+        name: "韭菜炒蛋",
+        type: "蛋菜",
+        time: "8分钟",
+        ingredients: { "韭菜": "200g", "鸡蛋": "3个", "盐": "适量", "油": "10ml" },
+        steps: ["鸡蛋先炒盛起", "韭菜下锅快炒", "加鸡蛋炒匀"],
+        nutrition: { calories: 220, protein: 14, carbs: 6, fat: 16, fiber: 2, calcium: 80 }
+      },
+      {
+        name: "小米粥",
+        type: "主食",
+        time: "30分钟",
+        ingredients: { "小米": "120g", "水": "1L" },
+        steps: ["小火煮30分钟至软糯"],
+        nutrition: { calories: 190, protein: 5, carbs: 40, fat: 1, fiber: 2, calcium: 8 }
+      }
+    ],
+    snack: [
+      {
+        name: "牛奶",
+        type: "乳品",
+        time: "1分钟",
+        ingredients: { "牛奶": "600ml" },
+        steps: ["温热饮用"],
+        nutrition: { calories: 120, protein: 8, carbs: 12, fat: 4, fiber: 0, calcium: 240 }
+      }
+    ]
+  },
+  5: {
+    breakfast: [
+      {
+        name: "豆浆油条",
+        type: "传统",
+        time: "10分钟",
+        ingredients: { "豆浆": "600ml", "油条": "3根" },
+        steps: ["豆浆加热", "配油条食用"],
+        tip: "油条可选择非油炸版本更健康。",
+        nutrition: { calories: 320, protein: 12, carbs: 35, fat: 15, fiber: 3, calcium: 60 }
+      },
+      {
+        name: "柿子",
+        type: "水果",
+        time: "1分钟",
+        ingredients: { "柿子": "2个" },
+        steps: ["洗净去蒂即可"],
+        nutrition: { calories: 70, protein: 1, carbs: 18, fat: 0, fiber: 2, calcium: 12 }
+      }
+    ],
+    lunch: [
+      {
+        name: "红烧狮子头",
+        type: "猪肉",
+        time: "35分钟",
+        ingredients: { "猪肉末": "400g", "鸡蛋": "1个", "淀粉": "20g", "葱姜": "适量", "生抽": "15ml" },
+        steps: ["肉末加蛋液淀粉调味做成丸子", "先煎定型再红烧20分钟"],
+        nutrition: { calories: 350, protein: 25, carbs: 8, fat: 24, fiber: 1, calcium: 30 }
+      },
+      {
+        name: "蒜蓉菜心",
+        type: "素菜",
+        time: "6分钟",
+        ingredients: { "菜心": "400g", "蒜蓉": "20g", "蚝油": "10ml" },
+        steps: ["菜心焯水", "蒜蓉爆香加蚝油炒制"],
+        nutrition: { calories: 85, protein: 4, carbs: 8, fat: 4, fiber: 3, calcium: 70 }
+      },
+      {
+        name: "糙米饭",
+        type: "主食",
+        time: "35分钟",
+        ingredients: { "糙米": "240g" },
+        steps: ["电饭煲煮制"],
+        nutrition: { calories: 280, protein: 6, carbs: 60, fat: 2, fiber: 3, calcium: 10 }
+      }
+    ],
+    dinner: [
+      {
+        name: "蒜蓉粉丝蒸扇贝",
+        type: "海鲜",
+        time: "12分钟",
+        ingredients: { "扇贝": "8个", "粉丝": "100g", "蒜蓉": "30g", "生抽": "8ml", "香油": "5ml" },
+        steps: ["扇贝处理干净", "粉丝垫底，蒜蓉铺面", "蒸8分钟调味"],
+        nutrition: { calories: 180, protein: 20, carbs: 12, fat: 6, fiber: 0, calcium: 60 }
+      },
+      {
+        name: "西红柿鸡蛋汤",
+        type: "汤",
+        time: "10分钟",
+        ingredients: { "西红柿": "2个", "鸡蛋": "2个", "香菜": "少许", "盐": "适量" },
+        steps: ["西红柿炒出汁加水煮开", "打蛋花调味"],
+        nutrition: { calories: 120, protein: 8, carbs: 8, fat: 6, fiber: 2, calcium: 40 }
+      },
+      {
+        name: "白米饭",
+        type: "主食",
+        time: "20分钟",
+        ingredients: { "大米": "200g" },
+        steps: ["电饭煲煮制"],
+        nutrition: { calories: 260, protein: 5, carbs: 58, fat: 1, fiber: 1, calcium: 8 }
+      }
+    ],
+    snack: [
+      {
+        name: "酸奶",
+        type: "乳品",
+        time: "1分钟",
+        ingredients: { "酸奶": "450ml" },
+        steps: ["直接饮用"],
+        nutrition: { calories: 120, protein: 5, carbs: 10, fat: 4, fiber: 0, calcium: 150 }
+      }
+    ]
+  },
+  6: {
+    breakfast: [
+      {
+        name: "包子配粥",
+        type: "传统",
+        time: "15分钟",
+        ingredients: { "肉包子": "3个", "白粥": "600ml" },
+        steps: ["包子蒸热", "配白粥食用"],
+        nutrition: { calories: 350, protein: 15, carbs: 55, fat: 8, fiber: 2, calcium: 80 }
+      },
+      {
+        name: "桔子",
+        type: "水果",
+        time: "1分钟",
+        ingredients: { "桔子": "3个" },
+        steps: ["剥皮即食"],
+        nutrition: { calories: 45, protein: 1, carbs: 11, fat: 0, fiber: 2, calcium: 15 }
+      }
+    ],
+    lunch: [
+      {
+        name: "白切鸡",
+        type: "鸡肉",
+        time: "25分钟",
+        ingredients: { "土鸡": "半只", "葱": "2根", "姜": "5片", "料酒": "10ml", "生抽": "蘸料" },
+        steps: ["整鸡加葱姜料酒水煮20分钟", "晾凉切块", "蘸生抽食用"],
+        nutrition: { calories: 260, protein: 30, carbs: 0, fat: 14, fiber: 0, calcium: 20 }
+      },
+      {
+        name: "腐竹拌黄瓜",
+        type: "素菜",
+        time: "10分钟",
+        ingredients: { "腐竹": "100g", "黄瓜": "200g", "生抽": "10ml", "香油": "5ml", "蒜末": "适量" },
+        steps: ["腐竹泡软切段", "黄瓜切丝", "调味拌匀"],
+        nutrition: { calories: 140, protein: 8, carbs: 10, fat: 8, fiber: 3, calcium: 60 }
+      },
+      {
+        name: "玉米饭",
+        type: "主食",
+        time: "25分钟",
+        ingredients: { "玉米粒": "150g", "大米": "150g", "水": "350ml" },
+        steps: ["玉米粒与大米同煮"],
+        nutrition: { calories: 270, protein: 6, carbs: 58, fat: 2, fiber: 4, calcium: 12 }
+      }
+    ],
+    dinner: [
+      {
+        name: "红烧鲤鱼",
+        type: "鱼",
+        time: "25分钟",
+        ingredients: { "鲤鱼": "1条", "生抽": "15ml", "老抽": "5ml", "糖": "8g", "葱姜": "适量" },
+        steps: ["鲤鱼煎至两面金黄", "加调料红烧15分钟"],
+        nutrition: { calories: 280, protein: 28, carbs: 5, fat: 16, fiber: 0, calcium: 40 }
+      },
+      {
+        name: "干煸豆角",
+        type: "素菜",
+        time: "12分钟",
+        ingredients: { "豆角": "400g", "肉末": "50g", "榨菜": "20g", "干辣椒": "适量" },
+        steps: ["豆角煸炒至微干", "加配料炒香"],
+        nutrition: { calories: 120, protein: 6, carbs: 12, fat: 6, fiber: 4, calcium: 35 }
+      },
+      {
+        name: "二米粥",
+        type: "主食",
+        time: "30分钟",
+        ingredients: { "大米": "80g", "小米": "40g", "水": "800ml" },
+        steps: ["两种米同煮至软糯"],
+        nutrition: { calories: 170, protein: 4, carbs: 36, fat: 1, fiber: 2, calcium: 10 }
+      }
+    ],
+    snack: [
+      {
+        name: "花生米",
+        type: "坚果",
+        time: "1分钟",
+        ingredients: { "水煮花生": "40g" },
+        steps: ["直接食用"],
+        nutrition: { calories: 160, protein: 8, carbs: 6, fat: 12, fiber: 2, calcium: 25 }
+      }
+    ]
+  },
+  7: {
+    breakfast: [
+      {
+        name: "煎饼果子",
+        type: "传统",
+        time: "20分钟",
+        ingredients: { "面糊": "适量", "鸡蛋": "3个", "榨菜丝": "30g", "香菜": "适量", "甜面酱": "15g" },
+        steps: ["摊煎饼", "打鸡蛋摊匀", "加配料卷起"],
+        nutrition: { calories: 380, protein: 16, carbs: 45, fat: 14, fiber: 3, calcium: 70 }
+      },
+      {
+        name: "豆浆",
+        type: "饮品",
+        time: "5分钟",
+        ingredients: { "豆浆": "600ml" },
+        steps: ["加热至温热"],
+        nutrition: { calories: 90, protein: 7, carbs: 6, fat: 3, fiber: 2, calcium: 30 }
+      }
+    ],
+    lunch: [
+      {
+        name: "可乐鸡翅",
+        type: "鸡肉",
+        time: "30分钟",
+        ingredients: { "鸡翅": "8个", "可乐": "250ml", "生抽": "15ml", "老抽": "5ml", "葱姜": "适量" },
+        steps: ["鸡翅煎至两面金黄", "倒入可乐和调料焖煮20分钟"],
+        tip: "可乐会产生焦糖色和甜味。",
+        nutrition: { calories: 320, protein: 25, carbs: 15, fat: 18, fiber: 0, calcium: 25 }
+      },
+      {
+        name: "蒜蓉西兰花",
+        type: "素菜",
+        time: "8分钟",
+        ingredients: { "西兰花": "400g", "蒜蓉": "20g", "生抽": "8ml" },
+        steps: ["西兰花焯水", "蒜蓉爆香炒制"],
+        nutrition: { calories: 90, protein: 5, carbs: 10, fat: 4, fiber: 4, calcium: 60 }
+      },
+      {
+        name: "香米饭",
+        type: "主食",
+        time: "20分钟",
+        ingredients: { "香米": "240g" },
+        steps: ["电饭煲煮制"],
+        nutrition: { calories: 270, protein: 5, carbs: 60, fat: 1, fiber: 1, calcium: 8 }
+      }
+    ],
+    dinner: [
+      {
+        name: "酸菜鱼",
+        type: "鱼",
+        time: "25分钟",
+        ingredients: { "草鱼片": "400g", "酸菜": "200g", "金针菇": "150g", "豆腐": "200g", "高汤": "500ml" },
+        steps: ["鱼片腌制", "酸菜炒香加汤煮开", "下鱼片和配菜煮3分钟"],
+        nutrition: { calories: 240, protein: 28, carbs: 8, fat: 10, fiber: 2, calcium: 80 }
+      },
+      {
+        name: "蒜蓉油麦菜",
+        type: "素菜",
+        time: "5分钟",
+        ingredients: { "油麦菜": "300g", "蒜蓉": "15g", "蚝油": "8ml" },
+        steps: ["大火炒油麦菜", "蒜蓉蚝油调味"],
+        nutrition: { calories: 70, protein: 3, carbs: 6, fat: 4, fiber: 2, calcium: 50 }
+      },
+      {
+        name: "白米饭",
+        type: "主食",
+        time: "20分钟",
+        ingredients: { "大米": "200g" },
+        steps: ["电饭煲煮制"],
+        nutrition: { calories: 260, protein: 5, carbs: 58, fat: 1, fiber: 1, calcium: 8 }
+      }
+    ],
+    snack: [
+      {
+        name: "红枣",
+        type: "干果",
+        time: "1分钟",
+        ingredients: { "红枣": "50g" },
+        steps: ["直接食用"],
+        nutrition: { calories: 140, protein: 2, carbs: 35, fat: 0, fiber: 3, calcium: 20 }
+      }
+    ]
+  }
+};
+
+// 第3周：植物蛋白强化版
+const week3 = {
+  1: {
+    breakfast: [
+      {
+        name: "五谷豆浆",
+        type: "主食+蛋白",
+        time: "10分钟",
+        ingredients: { "混合豆类": "100g", "燕麦": "30g", "核桃": "20g", "水": "600ml" },
+        steps: ["豆类提前泡发", "与燕麦核桃一起打成豆浆", "煮沸即可"],
+        nutrition: { calories: 280, protein: 16, carbs: 32, fat: 10, fiber: 8, calcium: 150 }
+      },
+      {
+        name: "全麦馒头",
+        type: "主食",
+        time: "5分钟",
+        ingredients: { "全麦馒头": "3个" },
+        steps: ["蒸热即可"],
+        nutrition: { calories: 210, protein: 7, carbs: 42, fat: 2, fiber: 6, calcium: 20 }
+      },
+      {
+        name: "苹果",
+        type: "水果",
+        time: "1分钟",
+        ingredients: { "苹果": "2个" },
+        steps: ["洗净切片"],
+        nutrition: { calories: 80, protein: 0, carbs: 21, fat: 0, fiber: 4, calcium: 10 }
+      }
+    ],
+    lunch: [
+      {
+        name: "三豆炖豆腐",
+        type: "素蛋白",
+        time: "25分钟",
+        ingredients: { "豆腐": "300g", "黑豆": "50g", "红豆": "50g", "绿豆": "50g", "生抽": "10ml" },
+        steps: ["三豆提前泡发2小时", "与豆腐块同炖20分钟", "调味即可"],
+        nutrition: { calories: 280, protein: 22, carbs: 18, fat: 12, fiber: 8, calcium: 250 }
+      },
+      {
+        name: "凉拌海带丝",
+        type: "素菜",
+        time: "10分钟",
+        ingredients: { "海带丝": "200g", "胡萝卜丝": "100g", "香菜": "30g", "生抽": "10ml", "香油": "5ml" },
+        steps: ["海带丝焯水", "配蔬菜丝调味"],
+        nutrition: { calories: 60, protein: 2, carbs: 8, fat: 2, fiber: 4, calcium: 80 }
+      },
+      {
+        name: "薏米饭",
+        type: "主食",
+        time: "40分钟",
+        ingredients: { "薏米": "120g", "大米": "120g", "水": "480ml" },
+        steps: ["薏米提前泡4小时", "与大米同煮"],
+        nutrition: { calories: 250, protein: 6, carbs: 52, fat: 2, fiber: 4, calcium: 15 }
+      }
+    ],
+    dinner: [
+      {
+        name: "素什锦",
+        type: "素菜",
+        time: "15分钟",
+        ingredients: { "冬笋": "100g", "香菇": "100g", "胡萝卜": "100g", "豆干": "100g", "青菜": "150g", "生抽": "10ml" },
+        steps: ["各种蔬菜切丁", "依次下锅炒制", "调味即可"],
+        nutrition: { calories: 180, protein: 12, carbs: 20, fat: 6, fiber: 6, calcium: 120 }
+      },
+      {
+        name: "紫菜蛋花汤",
+        type: "汤",
+        time: "8分钟",
+        ingredients: { "紫菜": "20g", "鸡蛋": "2个", "香菜": "少许", "盐": "适量" },
+        steps: ["紫菜用开水冲泡", "打蛋花调味"],
+        nutrition: { calories: 100, protein: 8, carbs: 4, fat: 6, fiber: 1, calcium: 50 }
+      },
+      {
+        name: "五谷饭",
+        type: "主食",
+        time: "35分钟",
+        ingredients: { "五谷米": "200g", "水": "400ml" },
+        steps: ["提前浸泡", "电饭煲煮制"],
+        nutrition: { calories: 280, protein: 8, carbs: 56, fat: 3, fiber: 6, calcium: 25 }
+      }
+    ],
+    snack: [
+      {
+        name: "红枣银耳汤",
+        type: "甜品",
+        time: "30分钟",
+        ingredients: { "银耳": "30g", "红枣": "50g", "冰糖": "少许" },
+        steps: ["银耳泡发撕小朵", "与红枣同煮25分钟", "加冰糖调味"],
+        nutrition: { calories: 120, protein: 3, carbs: 28, fat: 0, fiber: 2, calcium: 30 }
+      }
+    ]
+  },
+  2: {
+    breakfast: [
+      {
+        name: "黑芝麻糊",
+        type: "主食",
+        time: "8分钟",
+        ingredients: { "黑芝麻粉": "60g", "糯米粉": "30g", "牛奶": "600ml", "蜂蜜": "适量" },
+        steps: ["芝麻粉糯米粉用少量牛奶调成糊", "加热剩余牛奶冲调", "蜂蜜调味"],
+        nutrition: { calories: 320, protein: 14, carbs: 28, fat: 18, fiber: 6, calcium: 400 }
+      },
+      {
+        name: "煮鸡蛋",
+        type: "蛋白",
+        time: "8分钟",
+        ingredients: { "鸡蛋": "2个" },
+        steps: ["水开后煮8分钟"],
+        nutrition: { calories: 140, protein: 12, carbs: 1, fat: 10, fiber: 0, calcium: 50 }
+      }
+    ],
+    lunch: [
+      {
+        name: "素鸡烧冬瓜",
+        type: "素蛋白",
+        time: "18分钟",
+        ingredients: { "素鸡": "300g", "冬瓜": "300g", "香菇": "100g", "生抽": "12ml", "老抽": "5ml" },
+        steps: ["素鸡切块煎至表面微黄", "加冬瓜香菇焖煮15分钟"],
+        nutrition: { calories: 220, protein: 18, carbs: 12, fat: 12, fiber: 4, calcium: 180 }
+      },
+      {
+        name: "拌菠菜粉丝",
+        type: "素菜",
+        time: "10分钟",
+        ingredients: { "菠菜": "300g", "粉丝": "100g", "生抽": "8ml", "香油": "5ml", "蒜末": "适量" },
+        steps: ["菠菜焯水", "粉丝泡软", "调味拌匀"],
+        nutrition: { calories: 140, protein: 4, carbs: 25, fat: 3, fiber: 4, calcium: 60 }
+      },
+      {
+        name: "小米饭",
+        type: "主食",
+        time: "25分钟",
+        ingredients: { "小米": "180g", "大米": "60g", "水": "480ml" },
+        steps: ["小米大米同煮"],
+        nutrition: { calories: 260, protein: 7, carbs: 54, fat: 2, fiber: 3, calcium: 20 }
+      }
+    ],
+    dinner: [
+      {
+        name: "腐竹烧肉",
+        type: "素荤搭配",
+        time: "25分钟",
+        ingredients: { "腐竹": "200g", "五花肉": "200g", "冬笋": "100g", "生抽": "15ml" },
+        steps: ["腐竹泡软切段", "五花肉煸出油", "加腐竹冬笋焖煮"],
+        nutrition: { calories: 320, protein: 20, carbs: 8, fat: 22, fiber: 3, calcium: 120 }
+      },
+      {
+        name: "清炒芦蒿",
+        type: "素菜",
+        time: "6分钟",
+        ingredients: { "芦蒿": "300g", "蒜末": "10g", "盐": "适量" },
+        steps: ["芦蒿去老根洗净", "大火爆炒调味"],
+        nutrition: { calories: 50, protein: 3, carbs: 4, fat: 2, fiber: 3, calcium: 40 }
+      },
+      {
+        name: "玉米粥",
+        type: "主食",
+        time: "25分钟",
+        ingredients: { "玉米面": "100g", "水": "800ml" },
+        steps: ["玉米面调糊煮至粘稠"],
+        nutrition: { calories: 160, protein: 4, carbs: 34, fat: 2, fiber: 3, calcium: 10 }
+      }
+    ],
+    snack: [
+      {
+        name: "莲子百合汤",
+        type: "甜品",
+        time: "35分钟",
+        ingredients: { "莲子": "50g", "百合": "30g", "冰糖": "20g" },
+        steps: ["莲子百合洗净", "煮30分钟至软糯", "加糖调味"],
+        nutrition: { calories: 140, protein: 4, carbs: 32, fat: 1, fiber: 2, calcium: 25 }
+      }
+    ]
+  },
+  3: {
+    breakfast: [
+      {
+        name: "红豆薏米粥",
+        type: "主食",
+        time: "40分钟",
+        ingredients: { "红豆": "80g", "薏米": "60g", "大米": "40g", "水": "1L" },
+        steps: ["红豆薏米提前泡4小时", "与大米同煮至软烂"],
+        nutrition: { calories: 240, protein: 8, carbs: 48, fat: 2, fiber: 6, calcium: 30 }
+      },
+      {
+        name: "咸鸭蛋",
+        type: "蛋白",
+        time: "1分钟",
+        ingredients: { "咸鸭蛋": "2个" },
+        steps: ["直接食用"],
+        nutrition: { calories: 180, protein: 12, carbs: 1, fat: 14, fiber: 0, calcium: 60 }
+      },
+      {
+        name: "橙子",
+        type: "水果",
+        time: "1分钟",
+        ingredients: { "橙子": "2个" },
+        steps: ["剥皮分瓣"],
+        nutrition: { calories: 80, protein: 2, carbs: 20, fat: 0, fiber: 4, calcium: 20 }
+      }
+    ],
+    lunch: [
+      {
+        name: "素烧鹅",
+        type: "素食",
+        time: "20分钟",
+        ingredients: { "油面筋": "200g", "冬菇": "100g", "笋片": "100g", "生抽": "15ml", "老抽": "8ml" },
+        steps: ["油面筋过油", "配蘑菇笋片红烧"],
+        nutrition: { calories: 260, protein: 15, carbs: 20, fat: 14, fiber: 4, calcium: 80 }
+      },
+      {
+        name: "凉拌萝卜丝",
+        type: "素菜",
+        time: "8分钟",
+        ingredients: { "白萝卜": "300g", "香菜": "30g", "生抽": "8ml", "醋": "5ml", "香油": "3ml" },
+        steps: ["萝卜刨丝腌制5分钟", "挤水配香菜调味"],
+        nutrition: { calories: 50, protein: 2, carbs: 8, fat: 1, fiber: 3, calcium: 35 }
+      },
+      {
+        name: "荞麦饭",
+        type: "主食",
+        time: "25分钟",
+        ingredients: { "荞麦": "150g", "大米": "90g", "水": "480ml" },
+        steps: ["荞麦大米同煮"],
+        nutrition: { calories: 270, protein: 8, carbs: 56, fat: 2, fiber: 5, calcium: 18 }
+      }
+    ],
+    dinner: [
+      {
+        name: "家常豆腐",
+        type: "素蛋白",
+        time: "15分钟",
+        ingredients: { "老豆腐": "400g", "青椒": "100g", "红椒": "50g", "豆瓣酱": "15g", "生抽": "8ml" },
+        steps: ["豆腐切块煎至金黄", "加椒丁豆瓣酱炒制"],
+        nutrition: { calories: 220, protein: 16, carbs: 10, fat: 14, fiber: 3, calcium: 200 }
+      },
+      {
+        name: "蒜蓉通菜",
+        type: "素菜",
+        time: "5分钟",
+        ingredients: { "通菜": "400g", "蒜蓉": "20g", "腐乳": "半块" },
+        steps: ["大火爆炒通菜", "蒜蓉腐乳调味"],
+        nutrition: { calories: 70, protein: 4, carbs: 6, fat: 3, fiber: 3, calcium: 80 }
+      },
+      {
+        name: "绿豆粥",
+        type: "主食",
+        time: "35分钟",
+        ingredients: { "绿豆": "100g", "大米": "60g", "水": "1L" },
+        steps: ["绿豆提前泡2小时", "与大米同煮"],
+        nutrition: { calories: 200, protein: 8, carbs: 40, fat: 1, fiber: 4, calcium: 20 }
+      }
+    ],
+    snack: [
+      {
+        name: "桂圆莲子汤",
+        type: "甜品",
+        time: "25分钟",
+        ingredients: { "桂圆肉": "30g", "莲子": "40g", "冰糖": "15g" },
+        steps: ["莲子去芯", "与桂圆同煮20分钟", "加糖调味"],
+        nutrition: { calories: 150, protein: 3, carbs: 38, fat: 0, fiber: 2, calcium: 25 }
+      }
+    ]
+  },
+  4: {
+    breakfast: [
+      {
+        name: "山药粥",
+        type: "主食",
+        time: "30分钟",
+        ingredients: { "山药": "200g", "大米": "100g", "红枣": "30g", "水": "1L" },
+        steps: ["山药去皮切块", "与大米红枣同煮至软糯"],
+        nutrition: { calories: 220, protein: 5, carbs: 48, fat: 1, fiber: 4, calcium: 25 }
+      },
+      {
+        name: "煎蛋",
+        type: "蛋白",
+        time: "5分钟",
+        ingredients: { "鸡蛋": "3个", "油": "5ml", "盐": "少许" },
+        steps: ["少油煎蛋", "撒盐调味"],
+        nutrition: { calories: 200, protein: 18, carbs: 1, fat: 14, fiber: 0, calcium: 60 }
+      },
+      {
+        name: "柚子",
+        type: "水果",
+        time: "2分钟",
+        ingredients: { "柚子": "半个" },
+        steps: ["剥皮分瓣"],
+        nutrition: { calories: 60, protein: 1, carbs: 15, fat: 0, fiber: 2, calcium: 12 }
+      }
+    ],
+    lunch: [
+      {
+        name: "素鸡翅",
+        type: "素食",
+        time: "25分钟",
+        ingredients: { "腐皮": "6张", "香菇": "6个", "冬笋": "100g", "生抽": "12ml", "老抽": "5ml" },
+        steps: ["腐皮包馅做成翅形", "油炸定型后红烧"],
+        nutrition: { calories: 240, protein: 16, carbs: 12, fat: 16, fiber: 3, calcium: 150 }
+      },
+      {
+        name: "醋溜土豆丝",
+        type: "素菜",
+        time: "8分钟",
+        ingredients: { "土豆": "400g", "醋": "10ml", "生抽": "5ml", "糖": "3g" },
+        steps: ["土豆刨丝用水冲淀粉", "大火爆炒调酸味"],
+        nutrition: { calories: 160, protein: 4, carbs: 36, fat: 2, fiber: 4, calcium: 20 }
+      },
+      {
+        name: "黑米饭",
+        type: "主食",
+        time: "40分钟",
+        ingredients: { "黑米": "200g", "水": "400ml" },
+        steps: ["黑米提前泡4小时", "电饭煲煮制"],
+        nutrition: { calories: 280, protein: 6, carbs: 58, fat: 2, fiber: 4, calcium: 25 }
+      }
+    ],
+    dinner: [
+      {
+        name: "红烧冬瓜",
+        type: "素菜",
+        time: "15分钟",
+        ingredients: { "冬瓜": "500g", "香菇": "100g", "生抽": "12ml", "老抽": "5ml", "糖": "5g" },
+        steps: ["冬瓜去皮切块", "配香菇红烧入味"],
+        nutrition: { calories: 80, protein: 3, carbs: 12, fat: 2, fiber: 2, calcium: 30 }
+      },
+      {
+        name: "麻辣豆干",
+        type: "素蛋白",
+        time: "10分钟",
+        ingredients: { "豆干": "200g", "青椒": "100g", "豆瓣酱": "10g", "花椒": "少许" },
+        steps: ["豆干切丝", "配青椒炒制调麻辣味"],
+        nutrition: { calories: 180, protein: 15, carbs: 8, fat: 10, fiber: 3, calcium: 180 }
+      },
+      {
+        name: "白米粥",
+        type: "主食",
+        time: "20分钟",
+        ingredients: { "大米": "100g", "水": "800ml" },
+        steps: ["小火慢煮至粘稠"],
+        nutrition: { calories: 150, protein: 3, carbs: 32, fat: 0, fiber: 1, calcium: 5 }
+      }
+    ],
+    snack: [
+      {
+        name: "雪梨银耳汤",
+        type: "甜品",
+        time: "35分钟",
+        ingredients: { "雪梨": "2个", "银耳": "30g", "冰糖": "20g", "枸杞": "10g" },
+        steps: ["银耳泡发撕小朵", "雪梨去核切块", "同煮30分钟加糖枸杞"],
+        nutrition: { calories: 120, protein: 2, carbs: 30, fat: 0, fiber: 3, calcium: 20 }
+      }
+    ]
+  },
+  5: {
+    breakfast: [
+      {
+        name: "八宝粥",
+        type: "主食",
+        time: "45分钟",
+        ingredients: { "大米": "40g", "红豆": "20g", "绿豆": "20g", "花生": "20g", "莲子": "20g", "红枣": "20g", "桂圆": "15g", "水": "1L" },
+        steps: ["各种豆类提前泡发", "与其他材料同煮至软糯"],
+        nutrition: { calories: 280, protein: 10, carbs: 55, fat: 4, fiber: 8, calcium: 60 }
+      },
+      {
+        name: "咸菜",
+        type: "配菜",
+        time: "1分钟",
+        ingredients: { "咸菜丝": "50g" },
+        steps: ["直接食用"],
+        nutrition: { calories: 20, protein: 1, carbs: 4, fat: 0, fiber: 2, calcium: 30 }
+      }
+    ],
+    lunch: [
+      {
+        name: "素烧鸭",
+        type: "素食",
+        time: "30分钟",
+        ingredients: { "面筋": "300g", "冬菇": "100g", "冬笋": "100g", "胡萝卜": "80g", "生抽": "15ml" },
+        steps: ["面筋过油切块", "配蔬菜红烧调味"],
+        nutrition: { calories: 250, protein: 20, carbs: 18, fat: 12, fiber: 4, calcium: 100 }
+      },
+      {
+        name: "凉拌豆皮",
+        type: "素蛋白",
+        time: "8分钟",
+        ingredients: { "豆皮": "200g", "黄瓜丝": "100g", "胡萝卜丝": "50g", "生抽": "8ml", "醋": "5ml" },
+        steps: ["豆皮切丝焯水", "配蔬菜丝调味"],
+        nutrition: { calories: 160, protein: 12, carbs: 8, fat: 9, fiber: 3, calcium: 120 }
+      },
+      {
+        name: "高粱米饭",
+        type: "主食",
+        time: "35分钟",
+        ingredients: { "高粱米": "120g", "大米": "120g", "水": "480ml" },
+        steps: ["高粱米提前泡4小时", "与大米同煮"],
+        nutrition: { calories: 270, protein: 6, carbs: 58, fat: 2, fiber: 4, calcium: 15 }
+      }
+    ],
+    dinner: [
+      {
+        name: "素什锦煲",
+        type: "素食",
+        time: "20分钟",
+        ingredients: { "香菇": "100g", "冬笋": "100g", "胡萝卜": "100g", "青菜": "150g", "豆腐": "200g", "生抽": "10ml" },
+        steps: ["各种蔬菜切块", "砂锅煲制入味"],
+        nutrition: { calories: 180, protein: 12, carbs: 15, fat: 8, fiber: 5, calcium: 180 }
+      },
+      {
+        name: "紫菜蛋花汤",
+        type: "汤",
+        time: "8分钟",
+        ingredients: { "紫菜": "20g", "鸡蛋": "2个", "虾皮": "10g", "香菜": "少许" },
+        steps: ["紫菜虾皮用开水泡", "打蛋花调味"],
+        nutrition: { calories: 120, protein: 10, carbs: 4, fat: 6, fiber: 1, calcium: 80 }
+      },
+      {
+        name: "小米饭",
+        type: "主食",
+        time: "25分钟",
+        ingredients: { "小米": "200g", "水": "400ml" },
+        steps: ["小火煮25分钟"],
+        nutrition: { calories: 260, protein: 7, carbs: 54, fat: 2, fiber: 3, calcium: 20 }
+      }
+    ],
+    snack: [
+      {
+        name: "红豆汤",
+        type: "甜品",
+        time: "40分钟",
+        ingredients: { "红豆": "80g", "冰糖": "25g", "陈皮": "5g" },
+        steps: ["红豆提前泡4小时", "煮35分钟至开花", "加糖陈皮调味"],
+        nutrition: { calories: 180, protein: 6, carbs: 38, fat: 1, fiber: 4, calcium: 30 }
+      }
+    ]
+  },
+  6: {
+    breakfast: [
+      {
+        name: "紫薯银耳粥",
+        type: "主食",
+        time: "35分钟",
+        ingredients: { "紫薯": "200g", "银耳": "30g", "大米": "80g", "冰糖": "15g", "水": "1L" },
+        steps: ["银耳提前泡发", "紫薯去皮切块", "与大米同煮至软糯"],
+        nutrition: { calories: 240, protein: 4, carbs: 52, fat: 1, fiber: 4, calcium: 35 }
+      },
+      {
+        name: "酱黄瓜",
+        type: "配菜",
+        time: "1分钟",
+        ingredients: { "酱黄瓜": "100g" },
+        steps: ["切片即可"],
+        nutrition: { calories: 30, protein: 1, carbs: 6, fat: 0, fiber: 1, calcium: 15 }
+      }
+    ],
+    lunch: [
+      {
+        name: "素鱼香肉丝",
+        type: "素食",
+        time: "15分钟",
+        ingredients: { "豆干丝": "200g", "胡萝卜丝": "100g", "青椒丝": "100g", "木耳丝": "50g", "郫县豆瓣酱": "15g" },
+        steps: ["豆干丝过水", "配蔬菜丝炒制鱼香味"],
+        nutrition: { calories: 200, protein: 16, carbs: 12, fat: 10, fiber: 4, calcium: 150 }
+      },
+      {
+        name: "拌三丝",
+        type: "素菜",
+        time: "10分钟",
+        ingredients: { "豆皮丝": "100g", "韭黄": "100g", "绿豆芽": "200g", "生抽": "8ml", "香油": "5ml" },
+        steps: ["豆皮丝焯水", "韭黄绿豆芽过水", "调味拌匀"],
+        nutrition: { calories: 140, protein: 8, carbs: 12, fat: 7, fiber: 4, calcium: 80 }
+      },
+      {
+        name: "燕麦饭",
+        type: "主食",
+        time: "25分钟",
+        ingredients: { "燕麦": "120g", "大米": "120g", "水": "480ml" },
+        steps: ["燕麦大米同煮"],
+        nutrition: { calories: 260, protein: 8, carbs: 52, fat: 3, fiber: 6, calcium: 25 }
+      }
+    ],
+    dinner: [
+      {
+        name: "红烧素鸡",
+        type: "素蛋白",
+        time: "18分钟",
+        ingredients: { "素鸡": "300g", "香菇": "100g", "青菜": "150g", "生抽": "12ml", "老抽": "5ml" },
+        steps: ["素鸡切块煎至表面微黄", "加香菇青菜红烧"],
+        nutrition: { calories: 220, protein: 18, carbs: 10, fat: 12, fiber: 3, calcium: 180 }
+      },
+      {
+        name: "清炒菜花",
+        type: "素菜",
+        time: "8分钟",
+        ingredients: { "菜花": "400g", "胡萝卜片": "50g", "蒜蓉": "10g" },
+        steps: ["菜花掰小朵焯水", "配胡萝卜片炒制"],
+        nutrition: { calories: 80, protein: 4, carbs: 10, fat: 3, fiber: 4, calcium: 40 }
+      },
+      {
+        name: "薏米粥",
+        type: "主食",
+        time: "40分钟",
+        ingredients: { "薏米": "150g", "水": "1L" },
+        steps: ["薏米提前泡4小时", "小火煮35分钟"],
+        nutrition: { calories: 180, protein: 5, carbs: 36, fat: 2, fiber: 3, calcium: 15 }
+      }
+    ],
+    snack: [
+      {
+        name: "绿豆汤",
+        type: "甜品",
+        time: "35分钟",
+        ingredients: { "绿豆": "80g", "冰糖": "20g", "薄荷叶": "少许" },
+        steps: ["绿豆提前泡2小时", "煮30分钟开花", "加糖薄荷调味"],
+        nutrition: { calories: 160, protein: 6, carbs: 34, fat: 1, fiber: 4, calcium: 25 }
+      }
+    ]
+  },
+  7: {
+    breakfast: [
+      {
+        name: "核桃黑芝麻粥",
+        type: "主食",
+        time: "25分钟",
+        ingredients: { "核桃仁": "40g", "黑芝麻": "30g", "大米": "100g", "冰糖": "15g", "水": "1L" },
+        steps: ["核桃芝麻打碎", "与大米同煮至软糯", "加糖调味"],
+        nutrition: { calories: 320, protein: 8, carbs: 38, fat: 16, fiber: 5, calcium: 180 }
+      },
+      {
+        name: "咸鸭蛋",
+        type: "蛋白",
+        time: "1分钟",
+        ingredients: { "咸鸭蛋": "1个" },
+        steps: ["直接食用"],
+        nutrition: { calories: 90, protein: 6, carbs: 1, fat: 7, fiber: 0, calcium: 30 }
+      }
+    ],
+    lunch: [
+      {
+        name: "素宫保丁",
+        type: "素食",
+        time: "12分钟",
+        ingredients: { "杏鲍菇": "300g", "花生米": "40g", "干辣椒": "适量", "生抽": "10ml", "醋": "5ml", "糖": "3g" },
+        steps: ["杏鲍菇切丁", "配花生米炒制宫保味"],
+        nutrition: { calories: 200, protein: 10, carbs: 15, fat: 12, fiber: 4, calcium: 60 }
+      },
+      {
+        name: "凉拌莴笋丝",
+        type: "素菜",
+        time: "8分钟",
+        ingredients: { "莴笋": "400g", "胡萝卜丝": "50g", "生抽": "8ml", "香油": "5ml", "蒜末": "适量" },
+        steps: ["莴笋刨丝腌制", "挤水配胡萝卜丝调味"],
+        nutrition: { calories: 70, protein: 2, carbs: 8, fat: 3, fiber: 3, calcium: 35 }
+      },
+      {
+        name: "红豆饭",
+        type: "主食",
+        time: "40分钟",
+        ingredients: { "红豆": "100g", "大米": "140g", "水": "480ml" },
+        steps: ["红豆提前泡4小时", "与大米同煮"],
+        nutrition: { calories: 280, protein: 8, carbs: 58, fat: 1, fiber: 6, calcium: 30 }
+      }
+    ],
+    dinner: [
+      {
+        name: "白萝卜炖豆腐",
+        type: "素食",
+        time: "20分钟",
+        ingredients: { "白萝卜": "300g", "豆腐": "300g", "香菇": "100g", "生抽": "8ml", "盐": "适量" },
+        steps: ["萝卜去皮切块", "与豆腐香菇同炖"],
+        nutrition: { calories: 150, protein: 12, carbs: 10, fat: 8, fiber: 3, calcium: 200 }
+      },
+      {
+        name: "蒜蓉菠菜",
+        type: "素菜",
+        time: "5分钟",
+        ingredients: { "菠菜": "400g", "蒜蓉": "20g", "盐": "适量" },
+        steps: ["菠菜洗净", "蒜蓉爆香炒制"],
+        nutrition: { calories: 80, protein: 4, carbs: 6, fat: 4, fiber: 3, calcium: 120 }
+      },
+      {
+        name: "二米粥",
+        type: "主食",
+        time: "30分钟",
+        ingredients: { "大米": "80g", "小米": "40g", "水": "800ml" },
+        steps: ["两种米同煮至软糯"],
+        nutrition: { calories: 170, protein: 4, carbs: 36, fat: 1, fiber: 2, calcium: 10 }
+      }
+    ],
+    snack: [
+      {
+        name: "木瓜牛奶",
+        type: "甜品",
+        time: "5分钟",
+        ingredients: { "木瓜": "200g", "牛奶": "400ml", "蜂蜜": "适量" },
+        steps: ["木瓜去籽切块", "与牛奶打成汁", "蜂蜜调味"],
+        nutrition: { calories: 180, protein: 8, carbs: 28, fat: 4, fiber: 2, calcium: 240 }
+      }
+    ]
+  }
+};
+
+// 第4周：地中海风格版（多样化海鲜和橄榄油）
+const week4 = {
+  1: {
+    breakfast: [
+      {
+        name: "地中海全麦面包",
+        type: "主食",
+        time: "10分钟",
+        ingredients: { "全麦面包": "6片", "橄榄油": "15ml", "番茄": "1个", "牛油果": "半个", "羊奶酪": "50g" },
+        steps: ["面包烤脆", "抹牛油果和番茄碎", "撒羊奶酪淋橄榄油"],
+        nutrition: { calories: 380, protein: 12, carbs: 45, fat: 18, fiber: 8, calcium: 120 }
+      },
+      {
+        name: "希腊酸奶",
+        type: "乳品",
+        time: "1分钟",
+        ingredients: { "希腊酸奶": "450ml", "蜂蜜": "10ml" },
+        steps: ["酸奶淋蜂蜜即可"],
+        nutrition: { calories: 160, protein: 18, carbs: 12, fat: 6, fiber: 0, calcium: 200 }
+      }
+    ],
+    lunch: [
+      {
+        name: "地中海烤鲈鱼",
+        type: "鱼",
+        time: "20分钟",
+        ingredients: { "鲈鱼柳": "450g", "橄榄油": "15ml", "柠檬": "1个", "迷迭香": "少许", "橄榄": "50g" },
+        steps: ["鱼柳腌制15分钟", "烤箱180℃烤15分钟", "配橄榄和柠檬汁"],
+        nutrition: { calories: 300, protein: 35, carbs: 3, fat: 16, fiber: 1, calcium: 30 }
+      },
+      {
+        name: "希腊沙拉",
+        type: "素菜",
+        time: "10分钟",
+        ingredients: { "黄瓜": "200g", "番茄": "200g", "红洋葱": "50g", "羊奶酪": "100g", "橄榄": "30g", "橄榄油": "10ml" },
+        steps: ["蔬菜切块", "配羊奶酪橄榄", "橄榄油调味"],
+        nutrition: { calories: 220, protein: 8, carbs: 12, fat: 16, fiber: 4, calcium: 180 }
+      },
+      {
+        name: "全麦面包",
+        type: "主食",
+        time: "2分钟",
+        ingredients: { "全麦面包": "4片" },
+        steps: ["稍微加热即可"],
+        nutrition: { calories: 200, protein: 6, carbs: 38, fat: 2, fiber: 6, calcium: 40 }
+      }
+    ],
+    dinner: [
+      {
+        name: "海鲜意面",
+        type: "海鲜主食",
+        time: "25分钟",
+        ingredients: { "意面": "240g", "虾仁": "200g", "蛤蜊": "200g", "橄榄油": "15ml", "大蒜": "20g", "白葡萄酒": "30ml" },
+        steps: ["意面煮至al dente", "海鲜用橄榄油大蒜爆炒", "加白酒和意面拌炒"],
+        nutrition: { calories: 520, protein: 28, carbs: 70, fat: 12, fiber: 3, calcium: 80 }
+      },
+      {
+        name: "烤蔬菜",
+        type: "素菜",
+        time: "25分钟",
+        ingredients: { "茄子": "200g", "西葫芦": "150g", "彩椒": "150g", "橄榄油": "12ml", "香草": "适量" },
+        steps: ["蔬菜切块拌橄榄油和香草", "烤箱200℃烤20分钟"],
+        nutrition: { calories: 150, protein: 4, carbs: 18, fat: 8, fiber: 6, calcium: 40 }
+      }
+    ],
+    snack: [
+      {
+        name: "地中海坚果拼盘",
+        type: "坚果",
+        time: "1分钟",
+        ingredients: { "混合坚果": "30g", "橄榄": "50g", "无花果干": "30g" },
+        steps: ["直接食用"],
+        nutrition: { calories: 220, protein: 6, carbs: 12, fat: 18, fiber: 4, calcium: 50 }
+      }
+    ]
+  },
+  2: {
+    breakfast: [
+      {
+        name: "橄榄油煎蛋",
+        type: "蛋白",
+        time: "8分钟",
+        ingredients: { "鸡蛋": "3个", "橄榄油": "10ml", "番茄": "1个", "羊奶酪": "30g" },
+        steps: ["橄榄油煎蛋", "配烤番茄和羊奶酪"],
+        nutrition: { calories: 280, protein: 20, carbs: 6, fat: 20, fiber: 2, calcium: 120 }
+      },
+      {
+        name: "全麦吐司",
+        type: "主食",
+        time: "3分钟",
+        ingredients: { "全麦吐司": "4片", "橄榄油": "5ml" },
+        steps: ["吐司烤脆淋橄榄油"],
+        nutrition: { calories: 180, protein: 6, carbs: 32, fat: 4, fiber: 4, calcium: 30 }
+      },
+      {
+        name: "葡萄",
+        type: "水果",
+        time: "1分钟",
+        ingredients: { "葡萄": "200g" },
+        steps: ["洗净即食"],
+        nutrition: { calories: 70, protein: 1, carbs: 18, fat: 0, fiber: 1, calcium: 10 }
+      }
+    ],
+    lunch: [
+      {
+        name: "香草烤三文鱼",
+        type: "鱼",
+        time: "18分钟",
+        ingredients: { "三文鱼柳": "450g", "柠檬": "1个", "橄榄油": "12ml", "百里香": "少许", "海盐": "适量" },
+        steps: ["三文鱼用柠檬汁和香草腌制", "烤箱190℃烤12分钟"],
+        nutrition: { calories: 380, protein: 34, carbs: 2, fat: 25, fiber: 0, calcium: 25 }
+      },
+      {
+        name: "藜麦塔布勒沙拉",
+        type: "主食沙拉",
+        time: "15分钟",
+        ingredients: { "藜麦": "150g", "番茄": "150g", "黄瓜": "100g", "香菜": "50g", "薄荷": "30g", "橄榄油": "10ml", "柠檬汁": "10ml" },
+        steps: ["藜麦煮熟晾凉", "配蔬菜香草", "橄榄油柠檬汁调味"],
+        nutrition: { calories: 280, protein: 9, carbs: 45, fat: 8, fiber: 5, calcium: 60 }
+      }
+    ],
+    dinner: [
+      {
+        name: "地中海炖鸡",
+        type: "鸡肉",
+        time: "35分钟",
+        ingredients: { "鸡腿": "3个", "橄榄": "80g", "番茄": "200g", "洋葱": "100g", "橄榄油": "12ml", "白葡萄酒": "50ml" },
+        steps: ["鸡腿煎至金黄", "加蔬菜橄榄炖煮25分钟", "用白酒收汁"],
+        nutrition: { calories: 350, protein: 30, carbs: 8, fat: 22, fiber: 2, calcium: 40 }
+      },
+      {
+        name: "柠檬土豆",
+        type: "主食",
+        time: "30分钟",
+        ingredients: { "土豆": "400g", "柠檬": "1个", "橄榄油": "15ml", "迷迭香": "少许" },
+        steps: ["土豆切块用橄榄油拌匀", "烤箱200℃烤25分钟", "撒柠檬汁和迷迭香"],
+        nutrition: { calories: 250, protein: 5, carbs: 45, fat: 6, fiber: 4, calcium: 20 }
+      },
+      {
+        name: "希腊沙拉小份",
+        type: "素菜",
+        time: "5分钟",
+        ingredients: { "生菜": "150g", "番茄": "100g", "羊奶酪": "50g", "橄榄油": "5ml" },
+        steps: ["简单拌制即可"],
+        nutrition: { calories: 120, protein: 4, carbs: 6, fat: 9, fiber: 2, calcium: 90 }
+      }
+    ],
+    snack: [
+      {
+        name: "无花果配坚果",
+        type: "水果坚果",
+        time: "2分钟",
+        ingredients: { "新鲜无花果": "3个", "杏仁": "20g", "蜂蜜": "5ml" },
+        steps: ["无花果切开", "配杏仁淋蜂蜜"],
+        nutrition: { calories: 180, protein: 5, carbs: 22, fat: 8, fiber: 4, calcium: 60 }
+      }
+    ]
+  },
+  3: {
+    breakfast: [
+      {
+        name: "地中海酸奶杯",
+        type: "乳品",
+        time: "5分钟",
+        ingredients: { "希腊酸奶": "400ml", "核桃": "30g", "蜂蜜": "10ml", "肉桂粉": "少许" },
+        steps: ["酸奶放杯中", "撒核桃碎", "淋蜂蜜撒肉桂粉"],
+        nutrition: { calories: 280, protein: 16, carbs: 18, fat: 16, fiber: 2, calcium: 200 }
+      },
+      {
+        name: "全麦吐司",
+        type: "主食",
+        time: "3分钟",
+        ingredients: { "全麦吐司": "4片", "橄榄油": "8ml" },
+        steps: ["吐司烤脆刷橄榄油"],
+        nutrition: { calories: 190, protein: 6, carbs: 32, fat: 5, fiber: 4, calcium: 30 }
+      }
+    ],
+    lunch: [
+      {
+        name: "橄榄油金枪鱼沙拉",
+        type: "海鲜沙拉",
+        time: "10分钟",
+        ingredients: { "金枪鱼罐头": "200g", "混合生菜": "200g", "番茄": "150g", "红洋葱": "50g", "橄榄": "40g", "橄榄油": "12ml", "柠檬汁": "10ml" },
+        steps: ["生菜洗净撕碎", "配金枪鱼、番茄、洋葱", "橄榄油柠檬汁调味"],
+        nutrition: { calories: 280, protein: 25, carbs: 8, fat: 18, fiber: 4, calcium: 60 }
+      },
+      {
+        name: "地中海扁豆",
+        type: "豆类",
+        time: "25分钟",
+        ingredients: { "红扁豆": "150g", "番茄": "100g", "洋葱": "80g", "橄榄油": "10ml", "月桂叶": "2片" },
+        steps: ["洋葱炒香", "加扁豆番茄煮20分钟", "月桂叶调味"],
+        nutrition: { calories: 220, protein: 12, carbs: 35, fat: 4, fiber: 8, calcium: 40 }
+      },
+      {
+        name: "皮塔饼",
+        type: "主食",
+        time: "2分钟",
+        ingredients: { "皮塔饼": "3个" },
+        steps: ["微波加热即可"],
+        nutrition: { calories: 180, protein: 6, carbs: 36, fat: 2, fiber: 2, calcium: 20 }
+      }
+    ],
+    dinner: [
+      {
+        name: "地中海烤虾",
+        type: "海鲜",
+        time: "15分钟",
+        ingredients: { "大虾": "400g", "大蒜": "20g", "橄榄油": "15ml", "柠檬": "1个", "欧芹": "30g", "白葡萄酒": "30ml" },
+        steps: ["虾去壳留尾腌制", "烤箱200℃烤10分钟", "撒欧芹淋柠檬汁"],
+        nutrition: { calories: 220, protein: 30, carbs: 4, fat: 8, fiber: 1, calcium: 80 }
+      },
+      {
+        name: "烤茄子",
+        type: "素菜",
+        time: "30分钟",
+        ingredients: { "茄子": "300g", "橄榄油": "12ml", "大蒜": "15g", "番茄酱": "30g", "羊奶酪": "50g" },
+        steps: ["茄子切片烤15分钟", "刷番茄酱撒奶酪再烤10分钟"],
+        nutrition: { calories: 180, protein: 6, carbs: 15, fat: 12, fiber: 6, calcium: 120 }
+      },
+      {
+        name: "柠檬米饭",
+        type: "主食",
+        time: "20分钟",
+        ingredients: { "大米": "200g", "柠檬": "1个", "橄榄油": "8ml", "欧芹": "20g" },
+        steps: ["米饭煮熟", "拌入柠檬汁橄榄油欧芹"],
+        nutrition: { calories: 280, protein: 5, carbs: 58, fat: 3, fiber: 2, calcium: 15 }
+      }
+    ],
+    snack: [
+      {
+        name: "地中海橄榄拼盘",
+        type: "配菜",
+        time: "2分钟",
+        ingredients: { "混合橄榄": "60g", "羊奶酪": "40g", "杏仁": "20g" },
+        steps: ["直接搭配食用"],
+        nutrition: { calories: 200, protein: 8, carbs: 4, fat: 18, fiber: 2, calcium: 100 }
+      }
+    ]
+  },
+  4: {
+    breakfast: [
+      {
+        name: "地中海煎蛋卷",
+        type: "蛋白",
+        time: "12分钟",
+        ingredients: { "鸡蛋": "3个", "菠菜": "100g", "羊奶酪": "60g", "番茄": "100g", "橄榄油": "10ml" },
+        steps: ["菠菜番茄炒软", "加蛋液摊成蛋卷", "撒羊奶酪"],
+        nutrition: { calories: 320, protein: 22, carbs: 8, fat: 22, fiber: 3, calcium: 200 }
+      },
+      {
+        name: "全麦面包",
+        type: "主食",
+        time: "2分钟",
+        ingredients: { "全麦面包": "3片" },
+        steps: ["烤制即可"],
+        nutrition: { calories: 150, protein: 5, carbs: 28, fat: 2, fiber: 4, calcium: 30 }
+      },
+      {
+        name: "橙汁",
+        type: "饮品",
+        time: "2分钟",
+        ingredients: { "鲜橙": "3个" },
+        steps: ["现榨橙汁"],
+        nutrition: { calories: 120, protein: 2, carbs: 28, fat: 0, fiber: 0, calcium: 30 }
+      }
+    ],
+    lunch: [
+      {
+        name: "地中海烤章鱼",
+        type: "海鲜",
+        time: "35分钟",
+        ingredients: { "章鱼": "400g", "土豆": "200g", "橄榄油": "15ml", "柠檬": "1个", "牛至": "少许" },
+        steps: ["章鱼煮25分钟至软", "配土豆烤制", "橄榄油柠檬汁调味"],
+        nutrition: { calories: 300, protein: 28, carbs: 25, fat: 10, fiber: 3, calcium: 50 }
+      },
+      {
+        name: "地中海豆类沙拉",
+        type: "豆类沙拉",
+        time: "15分钟",
+        ingredients: { "白豆罐头": "200g", "青豆": "100g", "红椒": "100g", "红洋葱": "50g", "橄榄油": "10ml", "红酒醋": "8ml" },
+        steps: ["豆类沥干冲洗", "配蔬菜丁调味拌匀"],
+        nutrition: { calories: 200, protein: 10, carbs: 30, fat: 5, fiber: 8, calcium: 60 }
+      },
+      {
+        name: "全麦面包",
+        type: "主食",
+        time: "2分钟",
+        ingredients: { "全麦面包": "3片" },
+        steps: ["稍微加热"],
+        nutrition: { calories: 150, protein: 5, carbs: 28, fat: 2, fiber: 4, calcium: 30 }
+      }
+    ],
+    dinner: [
+      {
+        name: "地中海炖羊肉",
+        type: "羊肉",
+        time: "45分钟",
+        ingredients: { "羊肉块": "400g", "茄子": "200g", "番茄": "200g", "洋葱": "100g", "橄榄油": "12ml", "红酒": "50ml" },
+        steps: ["羊肉煎至上色", "加蔬菜和红酒炖35分钟"],
+        nutrition: { calories: 380, protein: 32, carbs: 12, fat: 22, fiber: 4, calcium: 40 }
+      },
+      {
+        name: "地中海烤蔬菜",
+        type: "素菜",
+        time: "25分钟",
+        ingredients: { "西葫芦": "150g", "甜椒": "150g", "红洋葱": "100g", "橄榄油": "10ml", "香草": "适量" },
+        steps: ["蔬菜切块拌油", "烤箱190℃烤20分钟"],
+        nutrition: { calories: 120, protein: 3, carbs: 15, fat: 6, fiber: 4, calcium: 30 }
+      },
+      {
+        name: "藜麦",
+        type: "主食",
+        time: "15分钟",
+        ingredients: { "藜麦": "150g", "水": "300ml" },
+        steps: ["煮制至透明"],
+        nutrition: { calories: 180, protein: 6, carbs: 32, fat: 3, fiber: 3, calcium: 15 }
+      }
+    ],
+    snack: [
+      {
+        name: "地中海果仁蜜",
+        type: "甜品",
+        time: "3分钟",
+        ingredients: { "核桃": "25g", "杏仁": "15g", "蜂蜜": "15ml", "肉桂": "少许" },
+        steps: ["坚果稍微加热", "淋蜂蜜撒肉桂"],
+        nutrition: { calories: 200, protein: 6, carbs: 12, fat: 16, fiber: 2, calcium: 40 }
+      }
+    ]
+  },
+  5: {
+    breakfast: [
+      {
+        name: "地中海燕麦",
+        type: "主食",
+        time: "10分钟",
+        ingredients: { "燕麦片": "100g", "杏仁奶": "400ml", "无花果干": "40g", "核桃": "25g", "蜂蜜": "10ml" },
+        steps: ["燕麦用杏仁奶煮5分钟", "配无花果核桃", "淋蜂蜜"],
+        nutrition: { calories: 350, protein: 10, carbs: 52, fat: 12, fiber: 8, calcium: 150 }
+      },
+      {
+        name: "希腊酸奶",
+        type: "乳品",
+        time: "1分钟",
+        ingredients: { "希腊酸奶": "200ml" },
+        steps: ["直接食用"],
+        nutrition: { calories: 120, protein: 12, carbs: 8, fat: 4, fiber: 0, calcium: 150 }
+      }
+    ],
+    lunch: [
+      {
+        name: "地中海烤鸡腿",
+        type: "鸡肉",
+        time: "40分钟",
+        ingredients: { "鸡腿": "3个", "柠檬": "1个", "橄榄油": "15ml", "牛至": "适量", "大蒜": "20g", "橄榄": "50g" },
+        steps: ["鸡腿用柠檬汁腌制20分钟", "烤箱200℃烤30分钟", "配橄榄"],
+        nutrition: { calories: 380, protein: 35, carbs: 3, fat: 24, fiber: 1, calcium: 30 }
+      },
+      {
+        name: "地中海土豆沙拉",
+        type: "主食沙拉",
+        time: "20分钟",
+        ingredients: { "小土豆": "300g", "橄榄油": "12ml", "柠檬汁": "10ml", "欧芹": "30g", "红洋葱": "50g" },
+        steps: ["土豆煮熟切块", "趁热拌橄榄油柠檬汁", "配欧芹洋葱"],
+        nutrition: { calories: 220, protein: 4, carbs: 40, fat: 6, fiber: 4, calcium: 25 }
+      },
+      {
+        name: "番茄黄瓜沙拉",
+        type: "素菜",
+        time: "5分钟",
+        ingredients: { "番茄": "200g", "黄瓜": "150g", "橄榄油": "8ml", "海盐": "少许" },
+        steps: ["蔬菜切块拌匀"],
+        nutrition: { calories: 100, protein: 2, carbs: 10, fat: 6, fiber: 3, calcium: 20 }
+      }
+    ],
+    dinner: [
+      {
+        name: "地中海海鲜炖饭",
+        type: "海鲜主食",
+        time: "30分钟",
+        ingredients: { "大米": "200g", "虾仁": "150g", "蛤蜊": "150g", "鱿鱼": "100g", "番茄": "100g", "橄榄油": "12ml", "藏红花": "少许" },
+        steps: ["米饭炒香", "加海鲜和番茄焖制", "用藏红花调色调味"],
+        nutrition: { calories: 450, protein: 25, carbs: 60, fat: 10, fiber: 2, calcium: 70 }
+      },
+      {
+        name: "烤芦笋",
+        type: "素菜",
+        time: "15分钟",
+        ingredients: { "芦笋": "300g", "橄榄油": "8ml", "帕马森奶酪": "30g", "柠檬": "半个" },
+        steps: ["芦笋刷橄榄油烤12分钟", "撒奶酪挤柠檬"],
+        nutrition: { calories: 120, protein: 6, carbs: 8, fat: 8, fiber: 4, calcium: 120 }
+      }
+    ],
+    snack: [
+      {
+        name: "地中海酸奶蘸料",
+        type: "乳品",
+        time: "5分钟",
+        ingredients: { "希腊酸奶": "300ml", "黄瓜": "100g", "大蒜": "10g", "橄榄油": "5ml", "全麦面包": "2片" },
+        steps: ["黄瓜蒜泥拌入酸奶", "配面包蘸食"],
+        nutrition: { calories: 180, protein: 12, carbs: 20, fat: 6, fiber: 3, calcium: 200 }
+      }
+    ]
+  },
+  6: {
+    breakfast: [
+      {
+        name: "地中海蔬菜蛋卷",
+        type: "蛋白",
+        time: "15分钟",
+        ingredients: { "鸡蛋": "3个", "西葫芦": "100g", "番茄": "100g", "羊奶酪": "50g", "橄榄油": "8ml", "薄荷": "少许" },
+        steps: ["蔬菜炒软", "摊蛋卷包馅", "撒薄荷叶"],
+        nutrition: { calories: 300, protein: 20, carbs: 8, fat: 22, fiber: 3, calcium: 180 }
+      },
+      {
+        name: "全麦吐司",
+        type: "主食",
+        time: "3分钟",
+        ingredients: { "全麦吐司": "3片", "橄榄油": "5ml" },
+        steps: ["烤脆刷油"],
+        nutrition: { calories: 160, protein: 5, carbs: 28, fat: 3, fiber: 4, calcium: 30 }
+      },
+      {
+        name: "柠檬水",
+        type: "饮品",
+        time: "2分钟",
+        ingredients: { "柠檬": "1个", "蜂蜜": "5ml", "水": "500ml" },
+        steps: ["柠檬汁加蜂蜜调匀"],
+        nutrition: { calories: 25, protein: 0, carbs: 7, fat: 0, fiber: 0, calcium: 5 }
+      }
+    ],
+    lunch: [
+      {
+        name: "地中海烤鲭鱼",
+        type: "鱼",
+        time: "20分钟",
+        ingredients: { "鲭鱼": "450g", "柠檬": "1个", "橄榄油": "12ml", "迷迭香": "适量", "蒜蓉": "15g" },
+        steps: ["鲭鱼腌制15分钟", "烤箱180℃烤12分钟"],
+        nutrition: { calories: 350, protein: 32, carbs: 2, fat: 22, fiber: 0, calcium: 40 }
+      },
+      {
+        name: "地中海鹰嘴豆沙拉",
+        type: "豆类沙拉",
+        time: "10分钟",
+        ingredients: { "鹰嘴豆罐头": "200g", "番茄": "150g", "黄瓜": "100g", "红洋葱": "50g", "橄榄油": "10ml", "柠檬汁": "8ml" },
+        steps: ["鹰嘴豆沥干", "配切丁蔬菜调味"],
+        nutrition: { calories: 220, protein: 8, carbs: 32, fat: 6, fiber: 8, calcium: 50 }
+      },
+      {
+        name: "皮塔饼",
+        type: "主食",
+        time: "2分钟",
+        ingredients: { "皮塔饼": "2个" },
+        steps: ["加热即可"],
+        nutrition: { calories: 120, protein: 4, carbs: 24, fat: 1, fiber: 2, calcium: 15 }
+      }
+    ],
+    dinner: [
+      {
+        name: "地中海炖蔬菜",
+        type: "素食",
+        time: "35分钟",
+        ingredients: { "茄子": "200g", "西葫芦": "200g", "甜椒": "150g", "番茄": "200g", "洋葱": "100g", "橄榄油": "15ml", "百里香": "适量" },
+        steps: ["蔬菜切块", "橄榄油炒香后炖25分钟"],
+        nutrition: { calories: 200, protein: 5, carbs: 25, fat: 10, fiber: 8, calcium: 60 }
+      },
+      {
+        name: "地中海烤鸡胸",
+        type: "鸡肉",
+        time: "25分钟",
+        ingredients: { "鸡胸肉": "300g", "柠檬": "1个", "橄榄油": "10ml", "牛至": "适量", "大蒜": "15g" },
+        steps: ["鸡胸腌制15分钟", "烤制至熟透"],
+        nutrition: { calories: 280, protein: 35, carbs: 2, fat: 12, fiber: 0, calcium: 20 }
+      },
+      {
+        name: "柠檬藜麦",
+        type: "主食",
+        time: "15分钟",
+        ingredients: { "藜麦": "150g", "柠檬汁": "10ml", "橄榄油": "5ml", "欧芹": "20g" },
+        steps: ["藜麦煮熟拌调料"],
+        nutrition: { calories: 200, protein: 6, carbs: 35, fat: 4, fiber: 4, calcium: 20 }
+      }
+    ],
+    snack: [
+      {
+        name: "地中海干果",
+        type: "干果",
+        time: "1分钟",
+        ingredients: { "无花果干": "40g", "杏干": "30g", "开心果": "20g" },
+        steps: ["直接混合食用"],
+        nutrition: { calories: 220, protein: 6, carbs: 35, fat: 8, fiber: 6, calcium: 80 }
+      }
+    ]
+  },
+  7: {
+    breakfast: [
+      {
+        name: "地中海什锦早餐",
+        type: "综合",
+        time: "8分钟",
+        ingredients: { "全麦面包": "3片", "橄榄油": "8ml", "番茄": "1个", "橄榄": "30g", "羊奶酪": "40g", "蜂蜜": "5ml" },
+        steps: ["面包烤脆", "搭配其他食材", "淋蜂蜜"],
+        nutrition: { calories: 320, protein: 12, carbs: 38, fat: 14, fiber: 6, calcium: 150 }
+      },
+      {
+        name: "希腊酸奶",
+        type: "乳品",
+        time: "1分钟",
+        ingredients: { "希腊酸奶": "300ml", "核桃": "20g" },
+        steps: ["酸奶配核桃"],
+        nutrition: { calories: 200, protein: 14, carbs: 12, fat: 12, fiber: 2, calcium: 180 }
+      }
+    ],
+    lunch: [
+      {
+        name: "地中海海鲜拼盘",
+        type: "海鲜",
+        time: "20分钟",
+        ingredients: { "虾": "200g", "鱿鱼": "150g", "蛤蜊": "150g", "柠檬": "1个", "橄榄油": "12ml", "欧芹": "30g" },
+        steps: ["海鲜分别烹制", "柠檬汁橄榄油调味", "撒欧芹"],
+        nutrition: { calories: 280, protein: 32, carbs: 6, fat: 12, fiber: 1, calcium: 100 }
+      },
+      {
+        name: "地中海面包沙拉",
+        type: "主食沙拉",
+        time: "15分钟",
+        ingredients: { "全麦面包": "4片", "番茄": "200g", "黄瓜": "150g", "红洋葱": "50g", "橄榄油": "12ml", "红酒醋": "8ml" },
+        steps: ["面包切块烤脆", "配蔬菜调味拌匀"],
+        nutrition: { calories: 260, protein: 8, carbs: 40, fat: 8, fiber: 6, calcium: 50 }
+      }
+    ],
+    dinner: [
+      {
+        name: "地中海烤羊排",
+        type: "羊肉",
+        time: "30分钟",
+        ingredients: { "羊排": "400g", "迷迭香": "适量", "大蒜": "20g", "橄榄油": "12ml", "柠檬": "1个" },
+        steps: ["羊排腌制20分钟", "烤制至理想熟度"],
+        nutrition: { calories: 420, protein: 35, carbs: 2, fat: 28, fiber: 0, calcium: 25 }
+      },
+      {
+        name: "地中海烤土豆",
+        type: "主食",
+        time: "35分钟",
+        ingredients: { "土豆": "400g", "橄榄油": "12ml", "迷迭香": "适量", "海盐": "适量" },
+        steps: ["土豆切块拌油烤30分钟"],
+        nutrition: { calories: 250, protein: 5, carbs: 45, fat: 6, fiber: 4, calcium: 20 }
+      },
+      {
+        name: "地中海沙拉",
+        type: "素菜",
+        time: "5分钟",
+        ingredients: { "混合生菜": "200g", "橄榄": "40g", "羊奶酪": "50g", "橄榄油": "8ml" },
+        steps: ["简单拌制即可"],
+        nutrition: { calories: 160, protein: 6, carbs: 8, fat: 13, fiber: 3, calcium: 120 }
+      }
+    ],
+    snack: [
+      {
+        name: "地中海蜜枣坚果",
+        type: "干果坚果",
+        time: "2分钟",
+        ingredients: { "椰枣": "40g", "杏仁": "25g", "开心果": "15g" },
+        steps: ["椰枣去核夹坚果"],
+        nutrition: { calories: 220, protein: 6, carbs: 28, fat: 10, fiber: 4, calcium: 60 }
+      }
+    ]
+  }
+};
+
+// 视图切换函数
+function toggleView(view) {
+  const daily = document.getElementById('daily-view');
+  const cal = document.getElementById('calendar-view');
+  const btns = document.querySelectorAll('.toggle-btn');
+  
+  btns.forEach(b => b.classList.remove('active'));
+  
+  if (view === 'calendar') {
+    daily.style.display = 'none';
+    cal.style.display = 'block';
+    btns[1].classList.add('active');
+    renderCalendar();
+  } else {
+    daily.style.display = 'grid';
+    cal.style.display = 'none';
+    btns[0].classList.add('active');
+  }
+}
+
+// 日历渲染
+function renderCalendar() {
+  const cal = document.getElementById('calendar');
+  const title = document.getElementById('month-title');
+  
+  cal.innerHTML = '';
+  const y = state.year, m = state.month;
+  title.textContent = y + ' 年 ' + (m + 1) + ' 月';
+  
+  const heads = ['日', '一', '二', '三', '四', '五', '六'];
+  heads.forEach(h => {
+    const el = document.createElement('div');
+    el.className = 'head';
+    el.textContent = h;
+    cal.appendChild(el);
+  });
+  
+  const first = new Date(y, m, 1);
+  const days = new Date(y, m + 1, 0).getDate();
+  
+  // 添加空白日期
+  for (let i = 0; i < first.getDay(); i++) {
+    const o = document.createElement('div');
+    o.className = 'day';
+    o.style.visibility = 'hidden';
+    cal.appendChild(o);
+  }
+  
+  const today = new Date();
+  
+  // 添加日期
+  for (let d = 1; d <= days; d++) {
+    const cell = document.createElement('div');
+    cell.className = 'day';
+    
+    const num = document.createElement('span');
+    num.className = 'num';
+    num.textContent = d;
+    cell.appendChild(num);
+    
+    if (y === today.getFullYear() && m === today.getMonth() && d === today.getDate()) {
+      cell.classList.add('active');
+    }
+    
+    cell.addEventListener('click', () => {
+      state.day = d;
+      persistDate();
+      updateAll();
+      toggleView('daily');
+    });
+    
+    cal.appendChild(cell);
+  }
+}
+
+// 周映射函数
+function weekOfDay(day) {
+  if (day <= 7) return 1;
+  if (day <= 14) return 2;
+  if (day <= 21) return 3;
+  if (day <= 28) return 4;
+  return ((day - 28 - 1) % 3) + 1;
+}
+
+function planForDate() {
+  const w = weekOfDay(state.day);
+  const idx = ((state.day - 1) % 7) + 1;
+  const weekData = w === 1 ? week1 : w === 2 ? week2 : w === 3 ? week3 : week4;
+  const base = weekData[idx];
+  const key = dateKey();
+  const out = JSON.parse(JSON.stringify(base));
+  
+  if (userAdded[key]) {
+    out.snack = (out.snack || []).concat(userAdded[key]);
+  }
+  
+  return out;
+}
+
+// 日期相关函数
+function dateKey() {
+  return state.year + '-' + String(state.month + 1).padStart(2, '0') + '-' + String(state.day).padStart(2, '0');
+}
+
+function updateHeader() {
+  document.getElementById('current-date').textContent = 
+    state.year + '年' + (state.month + 1) + '月' + state.day + '日 · 第' + weekOfDay(state.day) + '周';
+}
+
+// 餐食显示函数
+function showMeal(tp) {
+  const btns = [...document.querySelectorAll('.tab-btn')];
+  const map = { breakfast: 0, lunch: 1, dinner: 2, snack: 3 };
+  
+  btns.forEach(b => b.classList.remove('active'));
+  btns[map[tp]].classList.add('active');
+  
+  document.querySelectorAll('.meal-content').forEach(el => el.classList.remove('active'));
+  document.getElementById(tp).classList.add('active');
+}
+
+function renderMeals() {
+  const data = planForDate();
+  const blocks = {
+    breakfast: document.getElementById('breakfast'),
+    lunch: document.getElementById('lunch'),
+    dinner: document.getElementById('dinner'),
+    snack: document.getElementById('snack')
+  };
+  
+  Object.keys(blocks).forEach(tp => {
+    const host = blocks[tp];
+    host.innerHTML = '';
+    
+    (data[tp] || []).forEach(it => {
+      const card = document.createElement('div');
+      card.className = 'dish';
+      
+      const h = document.createElement('h3');
+      h.textContent = it.name + (it.type ? '（' + it.type + '）' : '');
+      card.appendChild(h);
+      
+      if (it.time) {
+        const s = document.createElement('small');
+        s.className = 'time';
+        s.textContent = '用时：' + it.time;
+        card.appendChild(s);
+      }
+      
+      const ul = document.createElement('ul');
+      const ing = it.ingredients || {};
+      Object.keys(ing).forEach(k => {
+        const li = document.createElement('li');
+        li.textContent = k + '：' + ing[k];
+        ul.appendChild(li);
+      });
+      card.appendChild(ul);
+      
+      const ol = document.createElement('ol');
+      (it.steps || []).forEach(step => {
+        const li = document.createElement('li');
+        li.textContent = step;
+        ol.appendChild(li);
+      });
+      card.appendChild(ol);
+      
+      if (it.tip) {
+        const t = document.createElement('div');
+        t.className = 'tip';
+        t.textContent = '新手提醒：' + it.tip;
+        card.appendChild(t);
+      }
+      
+      if (it.nutrition) {
+        const n = it.nutrition;
+        const sm = document.createElement('small');
+        sm.className = 'nutri';
+        sm.textContent = '营养(每人)：≈ ' + n.calories + 'kcal | 蛋白 ' + n.protein + 'g | 碳水 ' + n.carbs + 'g | 脂肪 ' + n.fat + 'g | 纤维 ' + n.fiber + 'g | 钙 ' + n.calcium + 'mg';
+        card.appendChild(sm);
+      }
+      
+      host.appendChild(card);
+    });
+  });
+}
+
+// 营养计算和建议
+function updateNutrition() {
+  const data = planForDate();
+  const sum = { cal: 0, pro: 0, carb: 0, fat: 0, fib: 0, ca: 0 };
+  
+  ['breakfast', 'lunch', 'dinner', 'snack'].forEach(tp => {
+    (data[tp] || []).forEach(it => {
+      if (!it.nutrition) return;
+      const n = it.nutrition;
+      sum.cal += n.calories;
+      sum.pro += n.protein;
+      sum.carb += n.carbs;
+      sum.fat += n.fat;
+      sum.fib += n.fiber;
+      sum.ca += n.calcium;
+    });
+  });
+  
+  const per = {
+    cal: Math.round(sum.cal),
+    pro: Math.round(sum.pro),
+    carb: Math.round(sum.carb),
+    fat: Math.round(sum.fat),
+    fib: Math.round(sum.fib),
+    ca: Math.round(sum.ca)
+  };
+  
+  const box = document.getElementById('nutrition-summary');
+  box.innerHTML = '';
+  
+  [
+    '能量 ' + per.cal + ' kcal',
+    '蛋白 ' + per.pro + ' g',
+    '碳水 ' + per.carb + ' g',
+    '脂肪 ' + per.fat + ' g',
+    '纤维 ' + per.fib + ' g',
+    '钙 ' + per.ca + ' mg'
+  ].forEach(t => {
+    const pill = document.createElement('div');
+    pill.className = 'total-pill';
+    pill.textContent = t;
+    box.appendChild(pill);
+  });
+  
+  document.getElementById('nutrition-insights').innerHTML = generateInsights(per);
+}
+
+function generateInsights(per) {
+  const tips = [];
+  const actions = [];
+  const target = { protein: [60, 90], fiber: 25, calcium: 800 };
+  
+  if (per.pro < target.protein[0]) {
+    tips.push("⚠️ 蛋白质偏低，建议加一份高蛋白酸奶或鸡蛋。");
+    actions.push('protein');
+  } else if (per.pro > 110) {
+    tips.push("ℹ️ 蛋白偏高，注意多喝水与分配到多餐摄入。");
+  } else {
+    tips.push("✅ 蛋白质充足。");
+  }
+  
+  if (per.fib < target.fiber) {
+    tips.push("⚠️ 纤维偏低，建议加酸奶+奇亚籽或水果。");
+    actions.push('fiber');
+  } else {
+    tips.push("✅ 纤维达标。");
+  }
+  
+  if (per.ca < target.calcium) {
+    tips.push("ℹ️ 钙略少，可加一杯牛奶或豆制品。");
+    actions.push('calcium');
+  } else {
+    tips.push("✅ 钙摄入良好。");
+  }
+  
+  const fatRatio = (per.fat * 9) / Math.max(1, per.cal);
+  if (fatRatio > 0.35) tips.push("⚠️ 脂肪占比偏高，烹饪时减少用油/少油炸。");
+  if (fatRatio < 0.20) tips.push("ℹ️ 脂肪占比偏低，可用少量坚果/橄榄油提升饱腹。");
+  
+  let btns = "";
+  if (actions.length) {
+    btns = actions.map(a => 
+      '<button class="btn-mini" onclick="applyBoost(\'' + a + '\')">一键加 ' + 
+      (a === 'protein' ? '蛋白' : a === 'fiber' ? '纤维' : '钙') + '</button>'
+    ).join("");
+  }
+  
+  return '<b>营养要点：</b><br>• ' + tips.join("<br>• ") + 
+    (btns ? ("<div style='margin-top:6px'>" + btns + "</div>") : "");
+}
+
+// 一键加餐功能
+function makeSuggestItem(type) {
+  if (type === 'protein') {
+    return {
+      name: "营养加餐：高蛋白酸奶",
+      type: "加餐（自动添加）",
+      time: "1分钟",
+      ingredients: { "高蛋白酸奶": "600ml（3人）" },
+      steps: ["冷藏后分装食用"],
+      nutrition: { calories: 140, protein: 20, carbs: 8, fat: 2, fiber: 0, calcium: 200 }
+    };
+  }
+  if (type === 'fiber') {
+    return {
+      name: "营养加餐：酸奶拌奇亚籽",
+      type: "加餐（自动添加）",
+      time: "3分钟",
+      ingredients: { "原味酸奶": "450ml", "奇亚籽": "30g（约3汤匙）" },
+      steps: ["奇亚籽与酸奶搅匀，静置3分钟口感更好"],
+      nutrition: { calories: 120, protein: 6, carbs: 10, fat: 6, fiber: 8, calcium: 180 }
+    };
+  }
+  if (type === 'calcium') {
+    return {
+      name: "营养加餐：牛奶",
+      type: "加餐（自动添加）",
+      time: "1分钟",
+      ingredients: { "牛奶": "600ml" },
+      steps: ["冷饮或加热皆可"],
+      nutrition: { calories: 120, protein: 8, carbs: 12, fat: 4, fiber: 0, calcium: 240 }
+    };
+  }
+  return null;
+}
+
+function applyBoost(kind) {
+  const item = makeSuggestItem(kind);
+  if (!item) return;
+  
+  const key = dateKey();
+  userAdded[key] = userAdded[key] || [];
+  
+  if (userAdded[key].some(it => it.name === item.name)) return;
+  
+  userAdded[key].push(item);
+  updateAll();
+}
+
+// 购物清单功能
+function getWeekData(week) {
+  return week === 1 ? week1 : week === 2 ? week2 : week === 3 ? week3 : week4;
+}
+
+function parseQty(qty) {
+  const s = String(qty).replace(/\s+/g, '');
+  const m = s.match(/^([\d\.]+)([a-zA-Z\u4e00-\u9fa5]+)/);
+  if (m) {
+    return { num: parseFloat(m[1]), unit: m[2], raw: s };
+  }
+  const m2 = s.match(/([\d\.]+)\s*([gG]|ml|个|条|根|片|瓣|汤匙|茶匙)/);
+  if (m2) {
+    return { num: parseFloat(m2[1]), unit: m2[2], raw: s };
+  }
+  return { num: null, unit: null, raw: s };
+}
+
+function mergeIngredientsWeek(week) {
+  const acc = {};
+  const notes = [];
+  const data = getWeekData(week);
+  
+  for (let i = 1; i <= 7; i++) {
+    const day = data[i];
+    ['breakfast', 'lunch', 'dinner', 'snack'].forEach(tp => {
+      (day[tp] || []).forEach(it => {
+        const ing = it.ingredients || {};
+        Object.keys(ing).forEach(name => {
+          const q = ing[name];
+          const parsed = parseQty(q);
+          if (parsed.num != null && parsed.unit) {
+            acc[name] = acc[name] || {};
+            acc[name][parsed.unit] = (acc[name][parsed.unit] || 0) + parsed.num;
+          } else {
+            notes.push(name + '：' + q);
+          }
+        });
+      });
+    });
+  }
+  
+  // 添加用户自定义加餐
+  Object.keys(userAdded).forEach(k => {
+    userAdded[k].forEach(it => {
+      const ing = it.ingredients || {};
+      Object.keys(ing).forEach(name => {
+        const q = ing[name];
+        const parsed = parseQty(q);
+        if (parsed.num != null && parsed.unit) {
+          acc[name] = acc[name] || {};
+          acc[name][parsed.unit] = (acc[name][parsed.unit] || 0) + parsed.num;
+        } else {
+          notes.push(name + '：' + q);
+        }
+      });
+    });
+  });
+  
+  const lines = [];
+  Object.keys(acc).sort().forEach(name => {
+    const units = acc[name];
+    const parts = Object.keys(units).map(u => Math.round(units[u] * 100) / 100 + u);
+    lines.push('- ' + name + '：' + parts.join(' + '));
+  });
+  
+  if (notes.length) {
+    lines.push("\n（下列条目数量为备注，未参与合计）");
+    notes.forEach(n => lines.push("- " + n));
+  }
+  
+  return lines.join("\n");
+}
+
+function generateShoppingList() {
+  const week = parseInt(document.getElementById('week-select').value, 10);
+  const text = '第' + week + '周购物清单（共7天）\n' + mergeIngredientsWeek(week);
+  document.getElementById('shopping-list').textContent = text;
+}
+
+function downloadShoppingList() {
+  const week = parseInt(document.getElementById('week-select').value, 10);
+  const content = document.getElementById('shopping-list').textContent || '尚未生成清单';
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'week' + week + '_购物清单_ProV3.txt';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// 导航和存储函数
+function shiftDay(delta) {
+  const d = new Date(state.year, state.month, state.day + delta);
+  state.year = d.getFullYear();
+  state.month = d.getMonth();
+  state.day = d.getDate();
+  persistDate();
+  updateAll();
+}
+
+function shiftMonth(delta) {
+  const d = new Date(state.year, state.month + delta, 1);
+  state.year = d.getFullYear();
+  state.month = d.getMonth();
+  const max = new Date(state.year, state.month + 1, 0).getDate();
+  state.day = Math.min(state.day, max);
+  persistDate();
+  renderCalendar();
+  updateAll();
+}
+
+function toToday() {
+  const now = new Date();
+  state.year = now.getFullYear();
+  state.month = now.getMonth();
+  state.day = now.getDate();
+  persistDate();
+  renderCalendar();
+  updateAll();
+}
+
+function persistDate() {
+  try {
+    localStorage.setItem('mealProV3Date', JSON.stringify(state));
+    localStorage.setItem('mealProV3Added', JSON.stringify(userAdded));
+  } catch (e) {}
+}
+
+function restoreDate() {
+  try {
+    const raw = localStorage.getItem('mealProV3Date');
+    if (raw) {
+      const s = JSON.parse(raw);
+      if (s && typeof s.year === 'number') {
+        state = s;
+      }
+    }
+    const add = localStorage.getItem('mealProV3Added');
+    if (add) {
+      userAdded = JSON.parse(add) || {};
+    }
+  } catch (e) {}
+}
+
+function updateAll() {
+  updateHeader();
+  renderMeals();
+  updateNutrition();
+}
+
+// 初始化
+document.addEventListener('DOMContentLoaded', () => {
+  restoreDate();
+  if (!localStorage.getItem('mealProV3Date')) {
+    const now = new Date();
+    state.year = now.getFullYear();
+    state.month = now.getMonth();
+    state.day = now.getDate();
+  }
+  updateAll();
+});
+</script>
+</body>
+</html>
